@@ -9,9 +9,6 @@ const cors = require('cors');
 const app = express();
 const port = 3000;
 
-// Define a base directory to restrict file system access for security purposes.
-const BASE_DIR = path.resolve('/Users/davell/Documents/github/repoprompt');
-
 // Utility function for logging
 const log = (message, level = 'INFO') => {
   console.log(`[${new Date().toISOString()}] [${level}] ${message}`);
@@ -21,18 +18,24 @@ const log = (message, level = 'INFO') => {
 app.use(express.json());
 app.use(cors());
 
-// Helper function to validate that a given path is within the BASE_DIR
+// Helper function to validate and sanitize a given path
 const validatePath = (requestedPath) => {
+  // Resolve to absolute path to prevent relative path issues
   const resolvedPath = path.resolve(requestedPath);
-  if (!resolvedPath.startsWith(BASE_DIR)) {
-    throw new Error('Invalid path: Access is restricted.');
+  
+  // Prevent path traversal by ensuring the resolved path doesn't go beyond root
+  const root = path.resolve('/');
+  if (!resolvedPath.startsWith(root)) {
+    throw new Error('Invalid path: Path traversal detected.');
   }
+  
+  log(`Resolved path: ${resolvedPath}`, 'DEBUG');
   return resolvedPath;
 };
 
 // API to get directory contents
 app.get('/api/directory', async (req, res) => {
-  let requestedPath = req.query.path || BASE_DIR;
+  let requestedPath = req.query.path || process.cwd(); // Default to current working directory
   let dirPath;
   try {
     dirPath = validatePath(requestedPath);
@@ -42,7 +45,7 @@ app.get('/api/directory', async (req, res) => {
   }
 
   try {
-    await fs.access(dirPath);
+    await fs.access(dirPath, fs.constants.R_OK); // Check read access
     log(`Processing directory: ${dirPath}`);
 
     let ig = ignore();

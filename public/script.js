@@ -3,8 +3,8 @@
 (function() {
   'use strict';
 
-  // Root directory (mutable; updated by the update button)
-  let rootDirectory = "/Users/davell/Documents/github/repoprompt";
+  // Root directory is now initialized as null and must be set by user
+  let rootDirectory = null;
   // Base endpoint URL (mutable; updated by the connect button)
   let baseEndpoint = "http://localhost:3000";
 
@@ -12,8 +12,18 @@
   const state = {
     fileCache: new Map(), // Cache for file contents
     selectedTree: {},     // Current selected file tree (object for proper nesting)
+    collapsedFolders: new Set(), // Track collapsed folder paths
     userInstructions: "No instructions provided.",
     debounceTimer: null   // Debounce timer reference
+  };
+
+  // LocalStorage keys
+  const STORAGE_KEYS = {
+    DIRECTORY_PATH: 'repoPrompt_directoryPath',
+    ENDPOINT_URL: 'repoPrompt_endpointUrl',
+    PROMPT_SELECTION: 'repoPrompt_promptSelection',
+    FILE_SELECTION: 'repoPrompt_fileSelection',
+    COLLAPSED_FOLDERS: 'repoPrompt_collapsedFolders'
   };
 
   /**
@@ -32,7 +42,7 @@
 
   /**
    * Recursively renders the file tree into an HTML unordered list.
-   * The function now accepts an "isRoot" flag to avoid wrapping the root level in an extra <ul>.
+   * Now includes collapse/expand toggles and respects collapsed state.
    * @param {Object} tree - The file tree object.
    * @param {string} parentPath - The parent path.
    * @param {boolean} isRoot - Flag indicating whether to wrap in <ul> or not.
@@ -44,8 +54,11 @@
       if (tree[key].type === "file") {
         html += `<li data-file="${tree[key].path}">${key}</li>`;
       } else if (tree[key].type === "folder") {
-        html += `<li data-folder="${parentPath ? parentPath + '/' + key : key}">${key}`;
-        html += renderFileTree(tree[key].children, tree[key].path);
+        const folderPath = tree[key].path;
+        const isCollapsed = state.collapsedFolders.has(folderPath);
+        html += `<li data-folder="${folderPath}" ${isCollapsed ? 'class="collapsed"' : ''}>`;
+        html += `<span class="folder-toggle">${isCollapsed ? '+' : '-'}</span>${key}`;
+        html += renderFileTree(tree[key].children, folderPath);
         html += `</li>`;
       }
     }
@@ -54,10 +67,105 @@
   };
 
   /**
+   * Saves current application state to localStorage
+   */
+  const saveStateToLocalStorage = () => {
+    localStorage.setItem(STORAGE_KEYS.DIRECTORY_PATH, rootDirectory || '');
+    localStorage.setItem(STORAGE_KEYS.ENDPOINT_URL, baseEndpoint);
+    
+    const promptSelection = {
+      codeMap: document.getElementById('prompt-code-map').checked,
+      enhance: document.getElementById('prompt-enhance').checked,
+      debug: document.getElementById('prompt-debug').checked
+    };
+    localStorage.setItem(STORAGE_KEYS.PROMPT_SELECTION, JSON.stringify(promptSelection));
+
+    const selectedPaths = getSelectedPaths(state.selectedTree);
+    localStorage.setItem(STORAGE_KEYS.FILE_SELECTION, JSON.stringify(selectedPaths));
+
+    localStorage.setItem(STORAGE_KEYS.COLLAPSED_FOLDERS, JSON.stringify([...state.collapsedFolders]));
+  };
+
+  /**
+   * Loads application state from localStorage
+   */
+  const loadStateFromLocalStorage = () => {
+    const savedDirectory = localStorage.getItem(STORAGE_KEYS.DIRECTORY_PATH);
+    if (savedDirectory) {
+      rootDirectory = savedDirectory;
+      document.getElementById('directory-path').value = savedDirectory;
+    }
+
+    const savedEndpoint = localStorage.getItem(STORAGE_KEYS.ENDPOINT_URL);
+    if (savedEndpoint) {
+      baseEndpoint = savedEndpoint;
+      document.getElementById('endpoint-url').value = savedEndpoint;
+    }
+
+    const savedPrompts = localStorage.getItem(STORAGE_KEYS.PROMPT_SELECTION);
+    if (savedPrompts) {
+      const prompts = JSON.parse(savedPrompts);
+      document.getElementById('prompt-code-map').checked = prompts.codeMap;
+      document.getElementById('prompt-enhance').checked = prompts.enhance;
+      document.getElementById('prompt-debug').checked = prompts.debug;
+    }
+
+    const savedCollapsed = localStorage.getItem(STORAGE_KEYS.COLLAPSED_FOLDERS);
+    if (savedCollapsed) {
+      state.collapsedFolders = new Set(JSON.parse(savedCollapsed));
+    }
+
+    // File selections will be applied after directory loads
+  };
+
+  /**
+   * Gets all selected paths from the tree
+   * @param {Object} tree - The file tree object
+   * @returns {string[]} - Array of selected paths
+   */
+  const getSelectedPaths = (tree) => {
+    let paths = [];
+    for (let key in tree) {
+      const node = tree[key];
+      if (node.type === 'file') {
+        paths.push(node.path);
+      } else if (node.type === 'folder') {
+        paths.push(node.path);
+        paths = paths.concat(getSelectedPaths(node.children));
+      }
+    }
+    return paths;
+  };
+
+  /**
+   * Applies saved file selections to the file tree
+   * @param {string[]} savedPaths - Array of paths to select
+   */
+  const applySavedFileSelections = (savedPaths) => {
+    const fileList = document.getElementById('file-list');
+    const allItems = fileList.querySelectorAll('li[data-file], li[data-folder]');
+    
+    allItems.forEach(item => {
+      const path = item.getAttribute('data-file') || item.getAttribute('data-folder');
+      if (savedPaths.includes(path)) {
+        item.classList.add('selected');
+        item.dataset.userClicked = true;
+      }
+    });
+    
+    state.selectedTree = buildSelectedTree(fileList);
+  };
+
+  /**
    * Generates the file explorer by fetching directory contents from the server.
    */
   const generateFileExplorer = async () => {
     const fileListElement = document.getElementById('file-list');
+    if (!rootDirectory) {
+      fileListElement.innerHTML = '<ul><li>Please specify a directory path</li></ul>';
+      return;
+    }
+
     fileListElement.innerHTML = '<ul><li>Loading...</li></ul>';
 
     try {
@@ -71,10 +179,23 @@
         // Render without extra wrapping for the root level.
         fileListElement.innerHTML = renderFileTree(data.tree, "", true);
         console.log('File explorer updated successfully');
-        state.selectedTree = buildSelectedTree(fileListElement);
+        
+        // Apply saved selections after loading
+        const savedSelections = localStorage.getItem(STORAGE_KEYS.FILE_SELECTION);
+        if (savedSelections) {
+          applySavedFileSelections(JSON.parse(savedSelections));
+        } else {
+          state.selectedTree = buildSelectedTree(fileListElement);
+        }
+        
         await updateXMLPreview(true); // Force full update on initial load
+        saveStateToLocalStorage(); // Save after successful load
       } else {
-        fileListElement.innerHTML = `<ul><li>Error: ${data.error}</li></ul>`;
+        let errorMsg = data.error;
+        if (errorMsg.includes("permission denied")) {
+          errorMsg = `Permission denied: The server cannot access ${rootDirectory}. Ensure the server has read permissions.`;
+        }
+        fileListElement.innerHTML = `<ul><li>Error: ${errorMsg}</li></ul>`;
         console.error('Failed to load directory:', data.error);
       }
     } catch (error) {
@@ -103,7 +224,7 @@
       }
 
       if (li.hasAttribute("data-folder")) {
-        let folderName = li.firstChild.nodeType === Node.TEXT_NODE ? li.firstChild.textContent.trim() : li.firstChild.textContent.trim();
+        let folderName = li.firstChild.nodeType === Node.TEXT_NODE ? li.firstChild.textContent.trim() : li.childNodes[1].textContent.trim();
         const folderPath = li.getAttribute("data-folder");
         const nestedUl = li.querySelector(":scope > ul");
         const children = nestedUl ? buildSelectedTree(nestedUl, folderPath) : {};
@@ -213,7 +334,7 @@
     console.log('Updating XML preview...');
 
     // File map section
-    let fileMapStr = `<file_map>\n${rootDirectory}\n`;
+    let fileMapStr = `<file_map>\n${rootDirectory || 'No directory specified'}\n`;
     if (Object.keys(state.selectedTree).length > 0) {
       const treeLines = formatTree(state.selectedTree);
       treeLines.forEach(line => fileMapStr += line + "\n");
@@ -242,6 +363,7 @@
     const finalXML = `${fileMapStr}\n\n${fileContentsStr}\n\n${metaPromptStr}\n${userInstructionsStr}`;
     document.getElementById('xml-output').textContent = finalXML;
     console.log('XML preview updated');
+    saveStateToLocalStorage(); // Save state after update
   };
 
   /**
@@ -277,39 +399,78 @@
   };
 
   /**
-   * Handles file/folder selection using event delegation.
+   * Toggles the collapse state of a folder
+   * @param {HTMLElement} li - The folder li element
+   */
+  const toggleFolderCollapse = (li) => {
+    const folderPath = li.getAttribute('data-folder');
+    const isCollapsed = li.classList.contains('collapsed');
+    const toggleSpan = li.querySelector('.folder-toggle');
+
+    if (isCollapsed) {
+      li.classList.remove('collapsed');
+      toggleSpan.textContent = '-';
+      state.collapsedFolders.delete(folderPath);
+    } else {
+      li.classList.add('collapsed');
+      toggleSpan.textContent = '+';
+      state.collapsedFolders.add(folderPath);
+    }
+    saveStateToLocalStorage();
+  };
+
+  /**
+   * Handles file/folder selection and collapse/expand using event delegation.
    * @param {Event} event - The click event.
    */
   const handleFileSelection = (event) => {
-    const target = event.target.closest('li');
-    if (!target || (!target.hasAttribute('data-file') && !target.hasAttribute('data-folder'))) return;
+    const target = event.target;
+    const li = target.closest('li');
+    if (!li) return;
 
-    const isFolder = target.hasAttribute('data-folder');
-    const wasSelected = target.classList.contains('selected');
+    // Handle folder toggle if clicking the toggle button or folder name
+    if (li.hasAttribute('data-folder') && (target.classList.contains('folder-toggle') || target.nodeType === Node.TEXT_NODE || target.tagName === 'LI')) {
+      toggleFolderCollapse(li);
+      return;
+    }
+
+    // Handle selection for files or folders when clicking elsewhere
+    if (!li.hasAttribute('data-file') && !li.hasAttribute('data-folder')) return;
+
+    const isFolder = li.hasAttribute('data-folder');
+    const wasSelected = li.classList.contains('selected');
     
     // Toggle selection
-    target.classList.toggle('selected');
-    target.dataset.userClicked = true; // Mark as user-initiated click
+    li.classList.toggle('selected');
+    li.dataset.userClicked = true; // Mark as user-initiated click
 
     if (isFolder) {
       // Select/deselect all children when folder is clicked
-      toggleFolderChildren(target, !wasSelected);
+      toggleFolderChildren(li, !wasSelected);
     }
 
-    console.log(`Toggled selection for: ${target.textContent.trim()}`);
+    console.log(`Toggled selection for: ${li.textContent.trim()}`);
     state.selectedTree = buildSelectedTree(document.getElementById('file-list'));
     updateXMLPreview(true); // Force full update when selection changes
   };
 
   /**
-   * Copies the XML output to the clipboard.
+   * Copies the XML output to the clipboard and shows a fading "copied!" message.
    */
   const copyXMLToClipboard = () => {
     const xmlText = document.getElementById('xml-output').textContent;
+    const feedbackElement = document.getElementById('copy-feedback');
+    
     navigator.clipboard.writeText(xmlText)
       .then(() => {
-        alert('XML copied to clipboard!');
+        // Show the "copied!" message and fade it out
+        feedbackElement.classList.add('show');
         console.log('XML copied to clipboard');
+        
+        // Remove the 'show' class after animation completes
+        setTimeout(() => {
+          feedbackElement.classList.remove('show');
+        }, 1000); // Matches the 0.5s fade-out plus some buffer
       })
       .catch(err => console.error('Failed to copy XML: ', err));
   };
@@ -376,6 +537,7 @@
         statusElement.style.color = "#00ff00";
         console.log(`Successfully connected to ${baseEndpoint}`);
         await generateFileExplorer();
+        saveStateToLocalStorage(); // Save after successful connection
       } else {
         statusElement.textContent = `Failed: ${data.error}`;
         statusElement.style.color = "#ff0000";
@@ -390,7 +552,8 @@
 
   // Attach event listeners after DOM content has loaded
   document.addEventListener('DOMContentLoaded', () => {
-    generateFileExplorer();
+    loadStateFromLocalStorage(); // Load saved state first
+    generateFileExplorer(); // Will use loaded directory or show "Please specify"
 
     const debouncedUpdate = debounce(() => {
       state.userInstructions = document.getElementById('user-instructions').value.trim() || "No instructions provided.";
@@ -399,15 +562,23 @@
 
     document.getElementById('user-instructions').addEventListener('input', debouncedUpdate);
     document.querySelectorAll('.prompt-selection input[type="checkbox"]').forEach(checkbox => {
-      checkbox.addEventListener('change', () => updateXMLPreview());
+      checkbox.addEventListener('change', () => {
+        updateXMLPreview();
+        saveStateToLocalStorage(); // Save prompt selection changes
+      });
     });
     document.getElementById('file-list').addEventListener('click', handleFileSelection);
     document.getElementById('copy-btn').addEventListener('click', copyXMLToClipboard);
 
     document.getElementById('update-directory').addEventListener('click', async function() {
-      rootDirectory = document.getElementById('directory-path').value.trim() || "/Users/davell/Documents/github/repoprompt";
+      rootDirectory = document.getElementById('directory-path').value.trim();
+      if (!rootDirectory) {
+        alert('Please enter a valid directory path');
+        return;
+      }
       console.log(`Updating directory to: ${rootDirectory}`);
       await generateFileExplorer();
+      saveStateToLocalStorage(); // Save after directory update
     });
 
     document.getElementById('connect-endpoint').addEventListener('click', checkConnection);

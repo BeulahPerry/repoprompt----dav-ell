@@ -5,6 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RepoPrompt UI</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    #copy-feedback {
+      margin-left: 10px;
+      color: #00ff00;
+      opacity: 0;
+      transition: opacity 0.5s ease-out;
+    }
+    #copy-feedback.show {
+      opacity: 1;
+    }
+    /* New styles for collapsible folders */
+    .folder-toggle {
+      cursor: pointer;
+      margin-right: 5px;
+      display: inline-block;
+      width: 12px;
+      text-align: center;
+    }
+    .collapsed > ul {
+      display: none;
+    }
+    li[data-folder] {
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
   <!-- Header area for user instructions, directory selection, and prompt selection -->
@@ -15,7 +40,7 @@
     <!-- New Directory Path Input with Update button -->
     <div class="directory-input">
       <label for="directory-path">Directory Path:</label>
-      <input type="text" id="directory-path" placeholder="Paste new directory path">
+      <input type="text" id="directory-path" placeholder="Enter absolute path (e.g., /home/user/project)">
       <button id="update-directory">Update</button>
     </div>
     <!-- New Endpoint Input with Connect button -->
@@ -61,6 +86,7 @@
   <!-- XML formatting will be generated here -->
 </xml></pre>
       <button id="copy-btn">Copy XML</button>
+      <span id="copy-feedback">copied!</span>
     </main>
   </div>
 

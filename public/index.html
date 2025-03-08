@@ -10,23 +10,23 @@
   <!-- Header area for user instructions, directory selection, and prompt selection -->
   <header>
     <div class="user-input">
-      <textarea id="user-instructions" placeholder="Type your instructions here..." rows="3"></textarea>
+      <textarea id="user-instructions" placeholder="Type your instructions here..." rows="7"></textarea>
     </div>
     <!-- New Directory Path Input with Update button -->
-    <div class="directory-input" style="margin-top: 15px;">
-      <label for="directory-path" style="font-weight: bold; margin-right: 10px;">Directory Path:</label>
-      <input type="text" id="directory-path" placeholder="Paste new directory path" style="width: 50%; padding: 5px; border: 2px solid #00ffea; border-radius: 5px; background-color: #1e1e1e; color: #e0e0e0;">
-      <button id="update-directory" style="margin-left: 10px; padding: 5px 10px; border: none; border-radius: 5px; background-color: #00ffea; color: #121212; cursor: pointer;">Update</button>
+    <div class="directory-input">
+      <label for="directory-path">Directory Path:</label>
+      <input type="text" id="directory-path" placeholder="Paste new directory path">
+      <button id="update-directory">Update</button>
     </div>
     <!-- New Endpoint Input with Connect button -->
-    <div class="endpoint-input" style="margin-top: 15px;">
-      <label for="endpoint-url" style="font-weight: bold; margin-right: 10px;">Endpoint URL:</label>
-      <input type="text" id="endpoint-url" placeholder="http://localhost:3000" style="width: 50%; padding: 5px; border: 2px solid #00ffea; border-radius: 5px; background-color: #1e1e1e; color: #e0e0e0;">
-      <button id="connect-endpoint" style="margin-left: 10px; padding: 5px 10px; border: none; border-radius: 5px; background-color: #00ffea; color: #121212; cursor: pointer;">Connect</button>
-      <span id="connection-status" style="margin-left: 10px; color: #e0e0e0;"></span>
+    <div class="endpoint-input">
+      <label for="endpoint-url">Endpoint URL:</label>
+      <input type="text" id="endpoint-url" placeholder="http://localhost:3000">
+      <button id="connect-endpoint">Connect</button>
+      <span id="connection-status"></span>
     </div>
-    <div class="prompt-selection" style="margin-top: 15px;">
-      <label>Select Prompts:</label>
+    <div class="prompt-selection">
+      <label style="padding-right: 10px;">Select Prompts:</label>
       <div class="checkboxes">
         <!-- Default selected prompt: Code Map -->
         <label>

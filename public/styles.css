@@ -1,0 +1,137 @@
+/* Reset some basic elements */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  /* Overall body style for a techno-futuristic look */
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  
+  /* Header area styling */
+  header {
+    padding: 20px;
+    background-color: #1e1e1e;
+    border-bottom: 2px solid #00ffea;
+  }
+  
+  .user-input textarea {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #00ffea;
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    font-size: 1rem;
+    border-radius: 5px;
+    resize: vertical;
+  }
+  
+  .prompt-selection {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .prompt-selection label {
+    margin-right: 10px;
+    font-weight: bold;
+  }
+  
+  .prompt-selection .checkboxes label {
+    margin-right: 15px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  
+  .prompt-selection input[type="checkbox"] {
+    margin-right: 5px;
+  }
+  
+  /* Main container with sidebar and content area */
+  .container {
+    flex: 1;
+    display: flex;
+    height: calc(100vh - 160px);
+  }
+  
+  /* File explorer sidebar */
+  .file-explorer {
+    width: 250px;
+    background-color: #1e1e1e;
+    border-right: 2px solid #00ffea;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  
+  .file-explorer h2 {
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+    color: #00ffea;
+  }
+  
+  .file-explorer ul {
+    list-style-type: none;
+  }
+  
+  .file-explorer li {
+    padding: 8px 10px;
+    margin-bottom: 5px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .file-explorer li:hover {
+    background-color: #00ffea20;
+  }
+  
+  .file-explorer li.selected {
+    background-color: #00ffea50;
+  }
+  
+  /* Content area styling */
+  .content-area {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  
+  .content-area h2 {
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+    color: #00ffea;
+  }
+  
+  #xml-output {
+    background-color: #1e1e1e;
+    border: 2px solid #00ffea;
+    border-radius: 5px;
+    padding: 15px;
+    font-family: monospace;
+    height: 300px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+  }
+  
+  /* Copy button styling */
+  #copy-btn {
+    padding: 10px 20px;
+    font-size: 1rem;
+    background-color: #00ffea;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    color: #121212;
+    transition: background-color 0.2s;
+  }
+  
+  #copy-btn:hover {
+    background-color: #00ffd1;
+  }

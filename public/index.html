@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RepoPrompt UI</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header area for user instructions, directory selection, and prompt selection -->
+  <header>
+    <div class="user-input">
+      <textarea id="user-instructions" placeholder="Type your instructions here..." rows="3"></textarea>
+    </div>
+    <!-- New Directory Path Input with Update button -->
+    <div class="directory-input" style="margin-top: 15px;">
+      <label for="directory-path" style="font-weight: bold; margin-right: 10px;">Directory Path:</label>
+      <input type="text" id="directory-path" placeholder="Paste new directory path" style="width: 50%; padding: 5px; border: 2px solid #00ffea; border-radius: 5px; background-color: #1e1e1e; color: #e0e0e0;">
+      <button id="update-directory" style="margin-left: 10px; padding: 5px 10px; border: none; border-radius: 5px; background-color: #00ffea; color: #121212; cursor: pointer;">Update</button>
+    </div>
+    <div class="prompt-selection" style="margin-top: 15px;">
+      <label>Select Prompts:</label>
+      <div class="checkboxes">
+        <!-- Default selected prompt: Code Map -->
+        <label>
+          <input type="checkbox" id="prompt-code-map" checked>
+          Code Map
+        </label>
+        <!-- Additional prompts can be added here -->
+        <label>
+          <input type="checkbox" id="prompt-enhance">
+          Enhance Code
+        </label>
+        <label>
+          <input type="checkbox" id="prompt-debug">
+          Debug Suggestions
+        </label>
+      </div>
+    </div>
+  </header>
+  
+  <div class="container">
+    <!-- File explorer panel on the left -->
+    <aside class="file-explorer">
+      <h2>Files</h2>
+      <!-- File explorer tree will be generated dynamically -->
+      <ul id="file-list"></ul>
+    </aside>
+    
+    <!-- Main content area on the right -->
+    <main class="content-area">
+      <h2>XML Prompt Preview</h2>
+      <pre id="xml-output">&lt;xml&gt;
+  &lt;!-- XML formatting will be generated here --&gt;
+&lt;/xml&gt;</pre>
+      <button id="copy-btn">Copy XML</button>
+    </main>
+  </div>
+
+  <!-- Import the prompts first -->
+  <script src="prompts.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -6,8 +6,12 @@ const fs = require('fs').promises;
 const path = require('path');
 const ignore = require('ignore');
 const cors = require('cors');
+const dotenv = require('dotenv'); // Added for .env support
 const app = express();
 const port = 3000;
+
+// Load environment variables from .env file
+dotenv.config();
 
 // Utility function for logging
 const log = (message, level = 'INFO') => {

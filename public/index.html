@@ -5,31 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RepoPrompt UI</title>
   <link rel="stylesheet" href="styles.css">
-  <style>
-    #copy-feedback {
-      margin-left: 10px;
-      color: #00ff00;
-      opacity: 0;
-      transition: opacity 0.5s ease-out;
-    }
-    #copy-feedback.show {
-      opacity: 1;
-    }
-    /* New styles for collapsible folders */
-    .folder-toggle {
-      cursor: pointer;
-      margin-right: 5px;
-      display: inline-block;
-      width: 12px;
-      text-align: center;
-    }
-    .collapsed > ul {
-      display: none;
-    }
-    li[data-folder] {
-      cursor: pointer;
-    }
-  </style>
 </head>
 <body>
   <!-- Header area for user instructions, directory selection, and prompt selection -->
@@ -52,22 +27,10 @@
     </div>
     <div class="prompt-selection">
       <label style="padding-right: 10px;">Select Prompts:</label>
-      <div class="checkboxes">
-        <!-- Default selected prompt: Code Map -->
-        <label>
-          <input type="checkbox" id="prompt-code-map" checked>
-          Code Map
-        </label>
-        <!-- Additional prompts can be added here -->
-        <label>
-          <input type="checkbox" id="prompt-enhance">
-          Enhance Code
-        </label>
-        <label>
-          <input type="checkbox" id="prompt-debug">
-          Debug Suggestions
-        </label>
+      <div class="checkboxes" id="prompt-checkboxes">
+        <!-- Prompt checkboxes will be dynamically populated here -->
       </div>
+      <button id="manage-prompts-btn">Manage Prompts</button>
     </div>
   </header>
   
@@ -90,8 +53,24 @@
     </main>
   </div>
 
-  <!-- Import the prompts first -->
-  <script src="prompts.js"></script>
-  <script src="script.js"></script>
+  <!-- Prompt Modal -->
+  <div id="prompt-modal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Manage Prompts</h2>
+      <div>
+        <label for="new-prompt-name">Prompt Name:</label>
+        <input type="text" id="new-prompt-name" placeholder="Enter prompt name">
+      </div>
+      <div>
+        <label for="new-prompt-text">Prompt Text:</label>
+        <textarea id="new-prompt-text" placeholder="Enter prompt text" rows="7"></textarea>
+      </div>
+      <button id="save-prompt">Save Prompt</button>
+    </div>
+  </div>
+
+  <!-- Load main.js as a module -->
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

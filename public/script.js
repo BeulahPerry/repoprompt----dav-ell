@@ -103,11 +103,15 @@
       }
 
       if (li.hasAttribute("data-folder")) {
-        // Use textContent of the li element minus the text content of its nested ul if exists.
         let folderName = li.firstChild.nodeType === Node.TEXT_NODE ? li.firstChild.textContent.trim() : li.firstChild.textContent.trim();
         const folderPath = li.getAttribute("data-folder");
         const nestedUl = li.querySelector(":scope > ul");
         const children = nestedUl ? buildSelectedTree(nestedUl, folderPath) : {};
+
+        // Count total children and selected children
+        const allChildren = nestedUl ? nestedUl.querySelectorAll('li') : [];
+        const selectedChildren = nestedUl ? nestedUl.querySelectorAll('li.selected') : [];
+        const allSelected = allChildren.length > 0 && allChildren.length === selectedChildren.length;
 
         if (isSelected || Object.keys(children).length > 0) {
           tree[folderName] = {
@@ -115,6 +119,12 @@
             path: folderPath,
             children: children
           };
+          // Update folder's selection status based on children
+          if (allSelected && !isSelected) {
+            li.classList.add("selected");
+          } else if (!allSelected && isSelected && !li.dataset.userClicked) {
+            li.classList.remove("selected");
+          }
         }
       }
     });
@@ -248,17 +258,47 @@
   };
 
   /**
+   * Selects or deselects all children of a folder recursively
+   * @param {HTMLElement} li - The folder li element
+   * @param {boolean} select - Whether to select or deselect
+   */
+  const toggleFolderChildren = (li, select) => {
+    const children = li.querySelectorAll(':scope > ul > li');
+    children.forEach(child => {
+      if (select) {
+        child.classList.add('selected');
+      } else {
+        child.classList.remove('selected');
+      }
+      if (child.hasAttribute('data-folder')) {
+        toggleFolderChildren(child, select);
+      }
+    });
+  };
+
+  /**
    * Handles file/folder selection using event delegation.
    * @param {Event} event - The click event.
    */
   const handleFileSelection = (event) => {
     const target = event.target.closest('li');
-    if (target && (target.hasAttribute('data-file') || target.hasAttribute('data-folder'))) {
-      target.classList.toggle('selected');
-      console.log(`Toggled selection for: ${target.textContent.trim()}`);
-      state.selectedTree = buildSelectedTree(document.getElementById('file-list'));
-      updateXMLPreview(true); // Force full update when selection changes
+    if (!target || (!target.hasAttribute('data-file') && !target.hasAttribute('data-folder'))) return;
+
+    const isFolder = target.hasAttribute('data-folder');
+    const wasSelected = target.classList.contains('selected');
+    
+    // Toggle selection
+    target.classList.toggle('selected');
+    target.dataset.userClicked = true; // Mark as user-initiated click
+
+    if (isFolder) {
+      // Select/deselect all children when folder is clicked
+      toggleFolderChildren(target, !wasSelected);
     }
+
+    console.log(`Toggled selection for: ${target.textContent.trim()}`);
+    state.selectedTree = buildSelectedTree(document.getElementById('file-list'));
+    updateXMLPreview(true); // Force full update when selection changes
   };
 
   /**

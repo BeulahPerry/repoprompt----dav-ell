@@ -138,8 +138,14 @@ button:hover {
   background-color: #3a3a3c;
 }
 
-.file-explorer li.selected {
+/* Selected file styling */
+.file-explorer li[data-file].selected {
   background-color: #0a84ff40; /* Selected with blue tint */
+}
+
+/* Remove blue background for selected folders */
+.file-explorer li[data-folder].selected {
+  background-color: transparent;
 }
 
 /* Content area styling */

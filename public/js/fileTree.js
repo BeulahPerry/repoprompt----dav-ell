@@ -193,19 +193,21 @@ export function handleFileSelection(event) {
   const li = target.closest('li');
   if (!li) return;
 
-  if (li.hasAttribute('data-folder') && (target.classList.contains('folder-toggle') || target.nodeType === Node.TEXT_NODE || target.tagName === 'LI')) {
+  // If the user clicked on the folder toggle element, only toggle collapse.
+  if (target.classList.contains('folder-toggle')) {
     toggleFolderCollapse(li);
     return;
   }
 
-  if (!li.hasAttribute('data-file') && !li.hasAttribute('data-folder')) return;
-
+  // Handle selection toggle for both files and folders.
   const isFolder = li.hasAttribute('data-folder');
   const wasSelected = li.classList.contains('selected');
-  
+
+  // Toggle selection.
   li.classList.toggle('selected');
   li.dataset.userClicked = true;
 
+  // If it's a folder, also toggle selection for all its children.
   if (isFolder) {
     toggleFolderChildren(li, !wasSelected);
   }

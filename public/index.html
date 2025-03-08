@@ -18,6 +18,13 @@
       <input type="text" id="directory-path" placeholder="Paste new directory path" style="width: 50%; padding: 5px; border: 2px solid #00ffea; border-radius: 5px; background-color: #1e1e1e; color: #e0e0e0;">
       <button id="update-directory" style="margin-left: 10px; padding: 5px 10px; border: none; border-radius: 5px; background-color: #00ffea; color: #121212; cursor: pointer;">Update</button>
     </div>
+    <!-- New Endpoint Input with Connect button -->
+    <div class="endpoint-input" style="margin-top: 15px;">
+      <label for="endpoint-url" style="font-weight: bold; margin-right: 10px;">Endpoint URL:</label>
+      <input type="text" id="endpoint-url" placeholder="http://localhost:3000" style="width: 50%; padding: 5px; border: 2px solid #00ffea; border-radius: 5px; background-color: #1e1e1e; color: #e0e0e0;">
+      <button id="connect-endpoint" style="margin-left: 10px; padding: 5px 10px; border: none; border-radius: 5px; background-color: #00ffea; color: #121212; cursor: pointer;">Connect</button>
+      <span id="connection-status" style="margin-left: 10px; color: #e0e0e0;"></span>
+    </div>
     <div class="prompt-selection" style="margin-top: 15px;">
       <label>Select Prompts:</label>
       <div class="checkboxes">
@@ -50,9 +57,9 @@
     <!-- Main content area on the right -->
     <main class="content-area">
       <h2>XML Prompt Preview</h2>
-      <pre id="xml-output">&lt;xml&gt;
-  &lt;!-- XML formatting will be generated here --&gt;
-&lt;/xml&gt;</pre>
+      <pre id="xml-output"><xml>
+  <!-- XML formatting will be generated here -->
+</xml></pre>
       <button id="copy-btn">Copy XML</button>
     </main>
   </div>

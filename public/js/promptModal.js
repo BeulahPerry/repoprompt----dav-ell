@@ -1,7 +1,7 @@
 // public/js/promptModal.js
 // Manages the modal interface for adding new prompts.
 
-import { addPrompt } from './prompts.js';
+import { addPrompt, editPrompt, renderPromptsManagementList } from './prompts.js';
 
 /**
  * Initializes the prompt modal: sets up event listeners for opening, closing,
@@ -12,12 +12,24 @@ export function initPromptModal() {
   const openBtn = document.getElementById('manage-prompts-btn');
   const closeBtn = modal.querySelector('.close');
   const saveBtn = document.getElementById('save-prompt');
+  const cancelEditBtn = document.getElementById('cancel-edit');
   const promptNameInput = document.getElementById('new-prompt-name');
   const promptTextInput = document.getElementById('new-prompt-text');
+
+  // Function to clear the modal inputs and editing state
+  function clearModalInputs() {
+    promptNameInput.value = '';
+    promptTextInput.value = '';
+    saveBtn.removeAttribute('data-editing');
+    saveBtn.textContent = 'Save Prompt';
+    cancelEditBtn.style.display = 'none';
+  }
 
   // Show modal when clicking "Manage Prompts" button
   openBtn.addEventListener('click', () => {
     modal.style.display = 'block';
+    // Render the management list when the modal opens
+    renderPromptsManagementList();
   });
 
   // Hide modal when clicking on the close (X) button
@@ -34,7 +46,7 @@ export function initPromptModal() {
     }
   });
 
-  // Save new prompt when clicking the "Save Prompt" button
+  // Save new prompt or update existing prompt when clicking the "Save Prompt" button
   saveBtn.addEventListener('click', () => {
     const name = promptNameInput.value.trim();
     const text = promptTextInput.value.trim();
@@ -42,16 +54,20 @@ export function initPromptModal() {
       alert('Please fill in both the prompt name and text.');
       return;
     }
-    addPrompt(name, text);
-    modal.style.display = 'none';
+    // Check if we are in edit mode (data-editing attribute exists)
+    const editingName = saveBtn.getAttribute('data-editing');
+    if (editingName) {
+      editPrompt(editingName, name, text);
+    } else {
+      addPrompt(name, text);
+    }
     clearModalInputs();
+    // Re-render the management list after saving
+    renderPromptsManagementList();
   });
 
-  /**
-   * Clears the modal input fields.
-   */
-  function clearModalInputs() {
-    promptNameInput.value = '';
-    promptTextInput.value = '';
-  }
+  // Cancel editing mode when clicking the "Cancel Edit" button
+  cancelEditBtn.addEventListener('click', () => {
+    clearModalInputs();
+  });
 }

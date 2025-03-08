@@ -100,4 +100,90 @@ export function addPrompt(name, text) {
   availablePrompts[name] = text;
   savePromptsToStorage();
   renderPromptCheckboxes();
+  renderPromptsManagementList();
+}
+
+/**
+ * Edits an existing prompt.
+ * @param {string} oldName - The original prompt name.
+ * @param {string} newName - The new prompt name.
+ * @param {string} newText - The new prompt text.
+ */
+export function editPrompt(oldName, newName, newText) {
+  if (!newName || !newText) {
+    console.error('Both prompt name and text are required for editing.');
+    return;
+  }
+  if (oldName !== newName && availablePrompts[newName]) {
+    alert('A prompt with the new name already exists. Please choose a different name.');
+    return;
+  }
+  // Remove old prompt if name has changed
+  if (oldName !== newName) {
+    delete availablePrompts[oldName];
+  }
+  availablePrompts[newName] = newText;
+  savePromptsToStorage();
+  renderPromptCheckboxes();
+  renderPromptsManagementList();
+}
+
+/**
+ * Removes a prompt from availablePrompts.
+ * @param {string} name - The prompt name to remove.
+ */
+export function removePrompt(name) {
+  if (availablePrompts[name]) {
+    delete availablePrompts[name];
+    savePromptsToStorage();
+    renderPromptCheckboxes();
+    renderPromptsManagementList();
+  } else {
+    console.error(`Prompt "${name}" does not exist.`);
+  }
+}
+
+/**
+ * Renders the management list of prompts with edit and delete buttons.
+ */
+export function renderPromptsManagementList() {
+  const container = document.getElementById('prompt-management-list');
+  container.innerHTML = '';
+  
+  Object.entries(availablePrompts).forEach(([name, text]) => {
+    const promptItem = document.createElement('div');
+    promptItem.classList.add('prompt-item');
+    
+    const promptInfo = document.createElement('div');
+    promptInfo.classList.add('prompt-info');
+    promptInfo.style.padding = "10px";
+    promptInfo.innerHTML = `<strong>${name}</strong>: ${text}`;
+    
+    const editButton = document.createElement('button');
+    editButton.textContent = 'Edit';
+    editButton.addEventListener('click', () => {
+      // Populate the modal inputs with the selected prompt's data
+      document.getElementById('new-prompt-name').value = name;
+      document.getElementById('new-prompt-text').value = text;
+      // Set data attribute to indicate edit mode with the original name
+      document.getElementById('save-prompt').setAttribute('data-editing', name);
+      document.getElementById('save-prompt').textContent = 'Update Prompt';
+      // Show the cancel edit button
+      document.getElementById('cancel-edit').style.display = 'inline-block';
+    });
+    
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Delete';
+    deleteButton.addEventListener('click', () => {
+      if (confirm(`Are you sure you want to delete the prompt "${name}"?`)) {
+        removePrompt(name);
+      }
+    });
+    
+    promptItem.appendChild(promptInfo);
+    promptItem.appendChild(editButton);
+    promptItem.appendChild(deleteButton);
+    
+    container.appendChild(promptItem);
+  });
 }

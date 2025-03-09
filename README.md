@@ -2,6 +2,8 @@
 
 RepoPrompt is an unofficial pure-JavaScript open-source clone of [Repo Prompt](https://repoprompt.com/). This tool allows you to generate an XML representation of your project files and custom prompts to feed into a language model's chat interface for further processing.
 
+RepoPrompt now includes a free client-side version available at [https://repoprompt.netlify.app/](https://repoprompt.netlify.app/). The client-side version supports uploading a zip file containing a project directory, so you can generate the XML even if you don't have direct access to a server.
+
 ![UI PNG](assets/ui.png)
 
 ## Table of Contents

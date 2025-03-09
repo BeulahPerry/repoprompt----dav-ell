@@ -2,6 +2,8 @@
 
 RepoPrompt is an unofficial pure-JavaScript open-source clone of [Repo Prompt](https://repoprompt.com/). This tool allows you to generate an XML representation of your project files and custom prompts to feed into a language model's chat interface for further processing.
 
+![UI PNG](assets/ui.png)
+
 ## Table of Contents
 
 - [Environment Setup](#environment-setup)

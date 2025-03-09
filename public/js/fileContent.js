@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { getLanguage } from './utils.js';
+import { tryFetchWithFallback } from './connection.js'; // Added to support ngrok fallback
 
 /**
  * Recursively retrieves all file nodes from a file tree.
@@ -35,7 +36,8 @@ export async function fetchFileContent(fileNode) {
   const lang = getLanguage(fileNode.path);
   console.log(`Fetching file: ${fileNode.path}`);
   try {
-    const response = await fetch(`${state.baseEndpoint}/api/file?path=${encodeURIComponent(fileNode.path)}`);
+    const url = `${state.baseEndpoint}/api/file?path=${encodeURIComponent(fileNode.path)}`;
+    const response = await tryFetchWithFallback(url); // Use fallback-enabled fetch
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
 

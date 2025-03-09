@@ -3,12 +3,13 @@
 
 const express = require('express');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const ignore = require('ignore');
 const cors = require('cors');
-const dotenv = require('dotenv'); // Added for .env support
+const dotenv = require('dotenv');
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Load environment variables from .env file
 dotenv.config();
@@ -17,6 +18,20 @@ dotenv.config();
 const log = (message, level = 'INFO') => {
   console.log(`[${new Date().toISOString()}] [${level}] ${message}`);
 };
+
+// Middleware to log incoming requests
+app.use((req, res, next) => {
+  log(`Incoming request: ${req.method} ${req.url} from ${req.ip}`, 'DEBUG');
+  next();
+});
+
+// Middleware to log responses after they finish
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    log(`Response for ${req.method} ${req.url}: ${res.statusCode}`, 'DEBUG');
+  });
+  next();
+});
 
 // Middleware
 app.use(express.json());
@@ -150,13 +165,16 @@ app.get('/api/file', async (req, res) => {
 // API to check server connection status
 app.get('/api/connect', (req, res) => {
   try {
-    log('Connection check requested');
-    res.json({ 
+    // Log connection check with client's IP address
+    log(`Connection check requested from IP: ${req.ip}`, 'DEBUG');
+    const responsePayload = { 
       success: true, 
       status: 'Server is running',
       timestamp: new Date().toISOString(),
       port: port
-    });
+    };
+    log(`Responding with payload: ${JSON.stringify(responsePayload)}`, 'DEBUG');
+    res.json(responsePayload);
   } catch (error) {
     const errorMsg = `Connection check failed: ${error.message}`;
     log(errorMsg, 'ERROR');
@@ -181,6 +199,25 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, error: 'Internal Server Error' });
 });
 
-app.listen(port, () => {
-  log(`Server running at http://localhost:${port}`);
-});
+// Conditional startup: HTTPS or HTTP based on USE_HTTPS environment variable
+if (process.env.USE_HTTPS === 'true') {
+  // Import HTTPS module
+  const https = require('https');
+  // Synchronously read SSL certificate and key files
+  try {
+    const cert = fsSync.readFileSync(path.join(__dirname, 'server.cert'));
+    const key = fsSync.readFileSync(path.join(__dirname, 'server.key'));
+    const options = { key, cert };
+
+    https.createServer(options, app).listen(port, () => {
+      log(`HTTPS Server running at https://localhost:${port}`);
+    });
+  } catch (error) {
+    log(`Failed to start HTTPS server: ${error.message}`, 'ERROR');
+    process.exit(1);
+  }
+} else {
+  app.listen(port, () => {
+    log(`Server running at http://localhost:${port}`);
+  });
+}

@@ -6,7 +6,9 @@ export const STORAGE_KEYS = {
     ENDPOINT_URL: 'repoPrompt_endpointUrl',
     PROMPT_SELECTION: 'repoPrompt_promptSelection',
     FILE_SELECTION: 'repoPrompt_fileSelection',
-    COLLAPSED_FOLDERS: 'repoPrompt_collapsedFolders'
+    COLLAPSED_FOLDERS: 'repoPrompt_collapsedFolders',
+    UPLOADED_FILE_TREE: 'repoPrompt_uploadedFileTree',
+    UPLOADED_FILES: 'repoPrompt_uploadedFiles'
   };
   
   export const state = {
@@ -17,7 +19,9 @@ export const STORAGE_KEYS = {
     debounceTimer: null,            // Debounce timer reference
     selectedPrompts: new Set(),     // Track selected prompt names
     rootDirectory: null,            // Current directory path
-    baseEndpoint: "http://localhost:3000" // Base endpoint URL
+    baseEndpoint: "http://localhost:3000", // Base endpoint URL
+    uploadedFileTree: null,         // File tree from uploaded zip (if any)
+    uploadedFiles: {}               // Mapping from file path to file content from uploaded zip
   };
   
   /**
@@ -28,6 +32,8 @@ export const STORAGE_KEYS = {
     localStorage.setItem(STORAGE_KEYS.ENDPOINT_URL, state.baseEndpoint);
     localStorage.setItem(STORAGE_KEYS.PROMPT_SELECTION, JSON.stringify([...state.selectedPrompts]));
     localStorage.setItem(STORAGE_KEYS.COLLAPSED_FOLDERS, JSON.stringify([...state.collapsedFolders]));
+    localStorage.setItem(STORAGE_KEYS.UPLOADED_FILE_TREE, JSON.stringify(state.uploadedFileTree || {}));
+    localStorage.setItem(STORAGE_KEYS.UPLOADED_FILES, JSON.stringify(state.uploadedFiles || {}));
   }
   
   /**
@@ -61,6 +67,25 @@ export const STORAGE_KEYS = {
       } catch (error) {
         console.error('Failed to parse saved collapsed folders:', error.message);
         state.collapsedFolders = new Set();
+      }
+    }
+    const savedUploadedTree = localStorage.getItem(STORAGE_KEYS.UPLOADED_FILE_TREE);
+    if (savedUploadedTree) {
+      try {
+        const tree = JSON.parse(savedUploadedTree);
+        state.uploadedFileTree = Object.keys(tree).length > 0 ? tree : null;
+      } catch (error) {
+        console.error('Failed to parse uploaded file tree:', error.message);
+        state.uploadedFileTree = null;
+      }
+    }
+    const savedUploadedFiles = localStorage.getItem(STORAGE_KEYS.UPLOADED_FILES);
+    if (savedUploadedFiles) {
+      try {
+        state.uploadedFiles = JSON.parse(savedUploadedFiles);
+      } catch (error) {
+        console.error('Failed to parse uploaded files:', error.message);
+        state.uploadedFiles = {};
       }
     }
   }

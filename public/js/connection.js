@@ -12,9 +12,15 @@ import { generateFileExplorer } from './explorer.js';
  */
 export async function tryFetchWithFallback(url) {
   let response;
+  // Include custom header to bypass ngrok warning page
+  const fetchOptions = {
+    headers: {
+      "ngrok-skip-browser-warning": "true"
+    }
+  };
   try {
     console.log(`Trying HTTPS: ${url}`);
-    response = await fetch(url);
+    response = await fetch(url, fetchOptions);
     if (response.ok) return response;
     throw new Error(`HTTPS failed with status ${response.status}`);
   } catch (httpsError) {
@@ -22,7 +28,7 @@ export async function tryFetchWithFallback(url) {
   }
   const httpUrl = url.replace('https://', 'http://');
   console.log(`Falling back to HTTP: ${httpUrl}`);
-  response = await fetch(httpUrl);
+  response = await fetch(httpUrl, fetchOptions);
   return response;
 }
 

@@ -7,23 +7,26 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Header area for user instructions, directory selection, and prompt selection -->
+  <!-- Header area for user instructions, endpoint selection, directory selection, and prompt selection -->
   <header>
     <div class="user-input">
       <textarea id="user-instructions" placeholder="Type your instructions here..." rows="7"></textarea>
+    </div>
+    <!-- New Endpoint Input with Connect button and Upload button -->
+    <div class="endpoint-input">
+      <label for="endpoint-url">Endpoint URL:</label>
+      <input type="text" id="endpoint-url" placeholder="http://localhost:3000">
+      <button id="connect-endpoint">Connect</button>
+      &nbsp;&nbsp;&nbsp;or&nbsp;<button id="upload-btn">Upload!</button>
+      <!-- Hidden file input for zip files -->
+      <input type="file" id="zip-upload" accept=".zip" style="display:none;">
+      <span id="connection-status"></span>
     </div>
     <!-- New Directory Path Input with Update button -->
     <div class="directory-input">
       <label for="directory-path">Directory Path:</label>
       <input type="text" id="directory-path" placeholder="Enter absolute path (e.g., /home/user/project)">
       <button id="update-directory">Update</button>
-    </div>
-    <!-- New Endpoint Input with Connect button -->
-    <div class="endpoint-input">
-      <label for="endpoint-url">Endpoint URL:</label>
-      <input type="text" id="endpoint-url" placeholder="http://localhost:3000">
-      <button id="connect-endpoint">Connect</button>
-      <span id="connection-status"></span>
     </div>
     <div class="prompt-selection">
       <label style="padding-right: 10px;">Select Prompts:</label>
@@ -75,6 +78,7 @@
   </div>
 
   <!-- Load main.js as a module -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

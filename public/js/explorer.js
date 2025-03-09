@@ -4,6 +4,7 @@
 import { state, saveStateToLocalStorage } from './state.js';
 import { renderFileTree, applySavedFileSelections, buildSelectedTree, getSelectedPaths } from './fileTree.js';
 import { updateXMLPreview } from './xmlPreview.js';
+import { tryFetchWithFallback } from './connection.js'; // Added to support ngrok fallback
 
 /**
  * Generates the file explorer by fetching directory contents from the server.
@@ -22,7 +23,8 @@ export async function generateFileExplorer() {
 
   try {
     console.log(`Fetching directory: ${state.rootDirectory} from ${state.baseEndpoint}`);
-    const response = await fetch(`${state.baseEndpoint}/api/directory?path=${encodeURIComponent(state.rootDirectory)}`);
+    const url = `${state.baseEndpoint}/api/directory?path=${encodeURIComponent(state.rootDirectory)}`;
+    const response = await tryFetchWithFallback(url); // Use fallback-enabled fetch
     const data = await response.json();
 
     if (data.success) {

@@ -75,6 +75,23 @@ export async function updateXMLPreview(forceFullUpdate = false) {
   document.getElementById('xml-output').textContent = finalXML;
   console.log('XML preview updated');
 
+  // Update failed files list
+  const failedFilesDiv = document.getElementById('failed-files');
+  failedFilesDiv.innerHTML = ''; // Clear previous content
+  if (state.failedFiles.size > 0) {
+    const header = document.createElement('h3');
+    header.textContent = 'Files That Failed to Fetch:';
+    failedFilesDiv.appendChild(header);
+    
+    const ul = document.createElement('ul');
+    state.failedFiles.forEach(filePath => {
+      const li = document.createElement('li');
+      li.textContent = filePath;
+      ul.appendChild(li);
+    });
+    failedFilesDiv.appendChild(ul);
+  }
+
   // Save state after updating the preview.
   import('./state.js').then(module => {
     module.saveStateToLocalStorage();

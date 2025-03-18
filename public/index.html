@@ -7,45 +7,49 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Header area for user instructions, endpoint selection, directory selection, and prompt selection -->
+  <!-- Header area remains at the top -->
   <header>
-    <div class="user-input">
-      <textarea id="user-instructions" placeholder="Type your instructions here..." rows="7"></textarea>
-    </div>
-    <!-- New Endpoint Input with Connect button and Upload button -->
-    <div class="endpoint-input">
-      <label for="endpoint-url">Endpoint URL:</label>
-      <input type="text" id="endpoint-url" placeholder="http://localhost:3000">
-      <button id="connect-endpoint">Connect</button>
-      &nbsp;&nbsp;&nbsp;or&nbsp;<button id="upload-btn">Upload!</button>
-      <!-- Hidden file input for zip files -->
-      <input type="file" id="zip-upload" accept=".zip" style="display:none;">
-      <span id="connection-status"></span>
-    </div>
-    <!-- New Directory Path Input with Update button -->
-    <div class="directory-input">
-      <label for="directory-path">Directory Path:</label>
-      <input type="text" id="directory-path" placeholder="Enter absolute path (e.g., /home/user/project)">
-      <button id="update-directory">Update</button>
-    </div>
-    <div class="prompt-selection">
-      <label style="padding-right: 10px;">Select Prompts:</label>
-      <div class="checkboxes" id="prompt-checkboxes">
-        <!-- Prompt checkboxes will be dynamically populated here -->
+    <div class="right-panel">
+      <div class="user-input">
+        <textarea id="user-instructions" placeholder="Type your instructions here..." rows="7"></textarea>
       </div>
-      <button id="manage-prompts-btn">Manage Prompts</button>
+      <!-- Endpoint Input with Connect button and Upload button -->
+      <div class="endpoint-input">
+        <label for="endpoint-url">Endpoint URL:</label>
+        <input type="text" id="endpoint-url" placeholder="http://localhost:3000">
+        <button id="connect-endpoint">Connect</button>
+           or <button id="upload-btn">Upload!</button>
+        <!-- Hidden file input for zip files -->
+        <input type="file" id="zip-upload" accept=".zip" style="display:none;">
+        <span id="connection-status"></span>
+      </div>
+      <!-- Directory Path Input with Update button -->
+      <div class="directory-input">
+        <label for="directory-path">Directory Path:</label>
+        <input type="text" id="directory-path" placeholder="Enter absolute path (e.g., /home/user/project)">
+        <button id="update-directory">Update</button>
+      </div>
+      <div class="prompt-selection">
+        <label style="padding-right: 10px;">Select Prompts:</label>
+        <div class="checkboxes" id="prompt-checkboxes">
+          <!-- Prompt checkboxes will be dynamically populated here -->
+        </div>
+        <button id="manage-prompts-btn">Manage Prompts</button>
+      </div>
     </div>
   </header>
   
-  <div class="container">
-    <!-- File explorer panel on the left -->
-    <aside class="file-explorer">
-      <h2>Files</h2>
-      <!-- File explorer tree will be generated dynamically -->
+  <!-- File explorer panel spans the full left side -->
+  <aside class="file-explorer">
+    <h2>Files</h2>
+    <!-- File explorer tree will be generated dynamically -->
+    <div id="file-list-container">
       <ul id="file-list"></ul>
-    </aside>
-    
-    <!-- Main content area on the right -->
+    </div>
+  </aside>
+  
+  <!-- Main content area on the right -->
+  <div class="container">
     <main class="content-area">
       <h2>XML Prompt Preview</h2>
       <pre id="xml-output"><xml>
@@ -53,13 +57,14 @@
 </xml></pre>
       <button id="copy-btn">Copy XML</button>
       <span id="copy-feedback">copied!</span>
+      <div id="failed-files"></div> <!-- Added container for failed files -->
     </main>
   </div>
 
   <!-- Prompt Modal -->
   <div id="prompt-modal" class="modal">
     <div class="modal-content">
-      <span class="close">&times;</span>
+      <span class="close">×</span>
       <h2>Manage Prompts</h2>
       <div>
         <label for="new-prompt-name">Prompt Name:</label>

@@ -44,6 +44,7 @@ export async function fetchFileContent(fileNode) {
     if (data.success) {
       const content = `File: ${fileNode.path}\n\`\`\`${lang}\n${data.content}\n\`\`\`\n\n`;
       state.fileCache.set(fileNode.path, content);
+      state.failedFiles.delete(fileNode.path); // Remove from failed list on success
       console.log(`Successfully fetched and cached: ${fileNode.path}`);
       return content;
     } else {
@@ -53,6 +54,7 @@ export async function fetchFileContent(fileNode) {
     console.error(`Fetch error for ${fileNode.path}: ${error.message}`);
     const errorContent = `File: ${fileNode.path}\n\`\`\`${lang}\n<!-- Error: ${error.message} -->\n\`\`\`\n\n`;
     state.fileCache.set(fileNode.path, errorContent);
+    state.failedFiles.add(fileNode.path); // Add to failed list on error
     return errorContent;
   }
 }

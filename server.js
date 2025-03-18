@@ -52,6 +52,53 @@ const validatePath = (requestedPath) => {
   return resolvedPath;
 };
 
+// Custom natural compare function for sorting
+function naturalCompare(a, b) {
+    const re = /(\d+)/g;
+    const aParts = a.split(re);
+    const bParts = b.split(re);
+
+    for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
+        const aPart = aParts[i];
+        const bPart = bParts[i];
+
+        // If both parts are numeric, compare as numbers
+        if (/\d/.test(aPart) && /\d/.test(bPart)) {
+            const aNum = parseInt(aPart, 10);
+            const bNum = parseInt(bPart, 10);
+            if (aNum !== bNum) {
+                return aNum - bNum;
+            }
+        } else {
+            // Otherwise, compare as strings (case-insensitive)
+            const comparison = aPart.localeCompare(bPart, undefined, { sensitivity: 'base' });
+            if (comparison !== 0) {
+                return comparison;
+            }
+        }
+    }
+
+    // If one string is a prefix of the other, the shorter one comes first
+    return aParts.length - bParts.length;
+}
+
+// Helper function to sort directory entries: folders first, then files, both in natural order
+const sortDirents = (dirents) => {
+  const folders = dirents.filter(dirent => dirent.isDirectory()).map(dirent => ({
+    name: dirent.name,
+    isDirectory: true
+  }));
+  const files = dirents.filter(dirent => !dirent.isDirectory()).map(dirent => ({
+    name: dirent.name,
+    isDirectory: false
+  }));
+  
+  folders.sort((a, b) => naturalCompare(a.name, b.name));
+  files.sort((a, b) => naturalCompare(a.name, b.name));
+  
+  return [...folders, ...files].map(item => dirents.find(d => d.name === item.name));
+};
+
 // API to get directory contents
 app.get('/api/directory', async (req, res) => {
   let requestedPath = req.query.path || process.cwd(); // Default to current working directory
@@ -83,8 +130,9 @@ app.get('/api/directory', async (req, res) => {
       if (dirent.isDirectory()) return true;
       return !ig.ignores(relativePath);
     });
+    const sortedFiles = sortDirents(filteredFiles); // Sort the entries
 
-    const tree = await buildDirectoryTree(dirPath, filteredFiles, ig);
+    const tree = await buildDirectoryTree(dirPath, sortedFiles, ig);
     res.json({ success: true, tree, root: dirPath });
   } catch (error) {
     const errorMsg = `Failed to read directory ${dirPath}: ${error.message}`;
@@ -114,8 +162,9 @@ async function buildDirectoryTree(basePath, dirents, ig) {
           if (subDirent.isDirectory()) return true;
           return !ig.ignores(subRelativePath);
         });
+        const sortedSubDirents = sortDirents(filteredSubDirents); // Sort sub-entries
 
-        const subTree = await buildDirectoryTree(fullPath, filteredSubDirents, ig);
+        const subTree = await buildDirectoryTree(fullPath, sortedSubDirents, ig);
         if (Object.keys(subTree).length > 0) {
           tree[dirent.name] = {
             type: 'folder',

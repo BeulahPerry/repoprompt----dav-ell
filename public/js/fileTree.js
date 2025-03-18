@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { updateXMLPreview } from './xmlPreview.js';
+import { sortTreeEntries, isTextFile } from './utils.js'; // Added isTextFile import
 
 /**
  * Recursively renders the file tree into an HTML unordered list.
@@ -13,15 +14,27 @@ import { updateXMLPreview } from './xmlPreview.js';
  */
 export function renderFileTree(tree, parentPath = "", isRoot = false) {
   let html = isRoot ? "" : '<ul>';
-  for (let key in tree) {
-    if (tree[key].type === "file") {
-      html += `<li data-file="${tree[key].path}">${key}</li>`;
-    } else if (tree[key].type === "folder") {
-      const folderPath = tree[key].path;
-      const isCollapsed = state.collapsedFolders.has(folderPath);
-      html += `<li data-folder="${folderPath}" ${isCollapsed ? 'class="collapsed"' : ''}>`;
-      html += `<span class="folder-toggle">${isCollapsed ? '+' : '-'}</span>${key}`;
-      html += renderFileTree(tree[key].children, folderPath);
+  
+  // Convert tree object to array of entries and sort them
+  const entries = Object.entries(tree).map(([name, node]) => ({
+    name,
+    type: node.type,
+    path: node.path,
+    children: node.children
+  }));
+  const sortedEntries = sortTreeEntries(entries);
+
+  for (const entry of sortedEntries) {
+    if (entry.type === "file") {
+      const isText = isTextFile(entry.path);
+      html += `<li data-file="${entry.path}" data-text-file="${isText}">${entry.name}</li>`;
+    } else if (entry.type === "folder") {
+      const folderPath = entry.path;
+      // Start all folders collapsed by default
+      state.collapsedFolders.add(folderPath);
+      html += `<li data-folder="${folderPath}" class="collapsed">`;
+      html += `<span class="folder-toggle">+</span>${entry.name}`;
+      html += renderFileTree(entry.children, folderPath);
       html += `</li>`;
     }
   }
@@ -59,8 +72,14 @@ export function applySavedFileSelections(savedPaths) {
   allItems.forEach(item => {
     const path = item.getAttribute('data-file') || item.getAttribute('data-folder');
     if (savedPaths.includes(path)) {
-      item.classList.add('selected');
-      item.dataset.userClicked = true;
+      // Only select files if they are text files
+      if (item.hasAttribute('data-file') && item.getAttribute('data-text-file') === 'true') {
+        item.classList.add('selected');
+        item.dataset.userClicked = true;
+      } else if (item.hasAttribute('data-folder')) {
+        item.classList.add('selected');
+        item.dataset.userClicked = true;
+      }
     }
   });
   
@@ -80,7 +99,7 @@ export function buildSelectedTree(ulElement, parentPath = state.rootDirectory) {
   liElements.forEach(li => {
     const isSelected = li.classList.contains("selected");
 
-    if (li.hasAttribute("data-file") && isSelected) {
+    if (li.hasAttribute("data-file") && isSelected && li.getAttribute('data-text-file') === 'true') {
       const filePath = li.getAttribute("data-file");
       const fileName = filePath.split("/").pop();
       tree[fileName] = { type: "file", path: filePath };
@@ -149,12 +168,18 @@ export function formatTree(tree, prefix = "") {
 export function toggleFolderChildren(li, select) {
   const children = li.querySelectorAll(':scope > ul > li');
   children.forEach(child => {
-    if (select) {
-      child.classList.add('selected');
-    } else {
-      child.classList.remove('selected');
-    }
-    if (child.hasAttribute('data-folder')) {
+    if (child.hasAttribute('data-file') && child.getAttribute('data-text-file') === 'true') {
+      if (select) {
+        child.classList.add('selected');
+      } else {
+        child.classList.remove('selected');
+      }
+    } else if (child.hasAttribute('data-folder')) {
+      if (select) {
+        child.classList.add('selected');
+      } else {
+        child.classList.remove('selected');
+      }
       toggleFolderChildren(child, select);
     }
   });
@@ -193,26 +218,56 @@ export function handleFileSelection(event) {
   const li = target.closest('li');
   if (!li) return;
 
+  // Clear failed files list since a new selection is being made
+  state.failedFiles.clear();
+
   // If the user clicked on the folder toggle element, only toggle collapse.
   if (target.classList.contains('folder-toggle')) {
     toggleFolderCollapse(li);
     return;
   }
 
-  // Handle selection toggle for both files and folders.
+  // Handle selection and expansion for folders, or just selection for files.
   const isFolder = li.hasAttribute('data-folder');
+  const isTextFileAttr = li.getAttribute('data-text-file');
+  const isTextFile = isTextFileAttr === 'true';
   const wasSelected = li.classList.contains('selected');
 
-  // Toggle selection.
-  li.classList.toggle('selected');
-  li.dataset.userClicked = true;
-
-  // If it's a folder, also toggle selection for all its children.
   if (isFolder) {
-    toggleFolderChildren(li, !wasSelected);
+    const isCollapsed = li.classList.contains('collapsed');
+    if (isCollapsed) {
+      // Expand and select all text file children
+      li.classList.remove('collapsed');
+      li.querySelector('.folder-toggle').textContent = '-';
+      state.collapsedFolders.delete(li.getAttribute('data-folder'));
+      li.classList.add('selected');
+      li.dataset.userClicked = true;
+      toggleFolderChildren(li, true);
+    } else {
+      // Collapse and deselect all children
+      li.classList.add('collapsed');
+      li.querySelector('.folder-toggle').textContent = '+';
+      state.collapsedFolders.add(li.getAttribute('data-folder'));
+      li.classList.remove('selected');
+      delete li.dataset.userClicked; // Clear user-clicked flag
+      toggleFolderChildren(li, false);
+    }
+  } else if (isTextFile) {
+    // For text files only, toggle selection
+    li.classList.toggle('selected');
+    li.dataset.userClicked = true;
+  } else {
+    // Non-text files are not selectable; log and return
+    console.log(`Non-text file clicked, selection prevented: ${li.textContent.trim()}`);
+    return;
   }
 
   console.log(`Toggled selection for: ${li.textContent.trim()}`);
   state.selectedTree = buildSelectedTree(document.getElementById('file-list'));
   updateXMLPreview(true);
+
+  // Save state changes
+  import('./state.js').then(module => {
+    module.saveStateToLocalStorage();
+  });
 }

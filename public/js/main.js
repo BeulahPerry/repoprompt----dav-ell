@@ -10,6 +10,7 @@ import { checkConnection } from './connection.js';
 import { loadPromptsFromStorage, renderPromptCheckboxes } from './prompts.js';
 import { initPromptModal } from './promptModal.js';
 import { handleZipUpload } from './uploader.js';
+import { refreshSelectedFiles } from './fileContent.js'; // Added for polling refresh
 
 document.addEventListener('DOMContentLoaded', () => {
   // Load saved state from localStorage.
@@ -52,8 +53,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('user-instructions').addEventListener('input', debouncedUpdate);
   document.getElementById('file-list').addEventListener('click', handleFileSelection);
   
-  // Copy XML to clipboard with feedback.
-  document.getElementById('copy-btn').addEventListener('click', () => {
+  // Copy XML to clipboard with feedback after refreshing file contents.
+  document.getElementById('copy-btn').addEventListener('click', async () => {
+    await refreshSelectedFiles(); // Refresh file contents before copying
+    await updateXMLPreview(true); // Force full update after refresh
     const xmlText = document.getElementById('xml-output').textContent;
     const feedbackElement = document.getElementById('copy-feedback');
     
@@ -98,4 +101,34 @@ document.addEventListener('DOMContentLoaded', () => {
       await handleZipUpload(file);
     }
   });
+
+  // Start polling for file updates
+  startPolling();
 });
+
+/**
+ * Starts polling to refresh selected file contents every 10 seconds.
+ */
+function startPolling() {
+  const POLLING_INTERVAL = 10000; // 10 seconds in milliseconds
+
+  const poll = async () => {
+    if (!state.uploadedFileTree) { // Only poll if not using an uploaded zip
+      console.log('Polling for file updates...');
+      await refreshSelectedFiles();
+      await updateXMLPreview(true); // Force full update
+    }
+  };
+
+  // Initial call
+  poll();
+
+  // Set interval for subsequent polls
+  const intervalId = setInterval(poll, POLLING_INTERVAL);
+
+  // Cleanup on window unload to prevent memory leaks
+  window.addEventListener('unload', () => {
+    clearInterval(intervalId);
+    console.log('Polling stopped due to window unload');
+  });
+}

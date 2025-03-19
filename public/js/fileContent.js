@@ -58,3 +58,27 @@ export async function fetchFileContent(fileNode) {
     return errorContent;
   }
 }
+
+/**
+ * Refreshes the content of all selected files by clearing their cache and re-fetching.
+ * @returns {Promise<void>}
+ */
+export async function refreshSelectedFiles() {
+  if (state.uploadedFileTree) {
+    console.log('Skipping refresh: Using uploaded file tree, no server polling needed.');
+    return;
+  }
+
+  const selectedFiles = getFileNodes(state.selectedTree);
+  if (selectedFiles.length === 0) {
+    console.log('No selected files to refresh.');
+    return;
+  }
+
+  console.log(`Refreshing content for ${selectedFiles.length} selected files...`);
+  for (const fileNode of selectedFiles) {
+    state.fileCache.delete(fileNode.path); // Clear cache to force re-fetch
+    await fetchFileContent(fileNode); // Re-fetch content
+  }
+  console.log('Selected file contents refreshed.');
+}

@@ -7,6 +7,7 @@ import { formatTree, getSelectedPaths } from './fileTree.js';
 import { getFileNodes, fetchFileContent } from './fileContent.js';
 import { getPromptsXML } from './prompts.js';
 import { getLanguage } from './utils.js';
+import { getUploadedFile } from './db.js'; // Import IndexedDB function
 
 /**
  * Updates the XML preview based on the current state.
@@ -30,15 +31,15 @@ export async function updateXMLPreview(forceFullUpdate = false) {
   let fileNodes = [];
   if (Object.keys(state.selectedTree).length > 0) {
     if (state.uploadedFileTree) {
-      // For uploaded files, get nodes from the selected tree and use the uploaded file content
+      // For uploaded files, get nodes from the selected tree and use the uploaded file content from IndexedDB
       fileNodes = getFileNodes(state.selectedTree);
       if (fileNodes.length > 0) {
         console.log(`Processing contents for ${fileNodes.length} uploaded files`);
-        const fileContentsArray = fileNodes.map(fileNode => {
+        const fileContentsArray = await Promise.all(fileNodes.map(async fileNode => {
           const lang = getLanguage(fileNode.path);
-          const content = state.uploadedFiles[fileNode.path] || "<!-- Content not found -->";
-          return `File: ${fileNode.path}\n\`\`\`${lang}\n${content}\n\`\`\`\n\n`;
-        });
+          const content = await getUploadedFile(fileNode.path);
+          return `File: ${fileNode.path}\n\`\`\`${lang}\n${content || "<!-- Content not found -->"}\n\`\`\`\n\n`;
+        }));
         fileContentsStr += fileContentsArray.join('');
       } else {
         console.log('No uploaded files selected for content fetching');

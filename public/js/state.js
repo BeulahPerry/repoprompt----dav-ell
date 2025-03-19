@@ -8,7 +8,7 @@ export const STORAGE_KEYS = {
   FILE_SELECTION: 'repoPrompt_fileSelection',
   COLLAPSED_FOLDERS: 'repoPrompt_collapsedFolders',
   UPLOADED_FILE_TREE: 'repoPrompt_uploadedFileTree',
-  UPLOADED_FILES: 'repoPrompt_uploadedFiles',
+  // Removed UPLOADED_FILES key to avoid storing large file contents in localStorage.
   FAILED_FILES: 'repoPrompt_failedFiles' // Added for failed file tracking
 };
 
@@ -22,7 +22,7 @@ export const state = {
   rootDirectory: null,            // Current directory path
   baseEndpoint: "http://localhost:3000", // Base endpoint URL
   uploadedFileTree: null,         // File tree from uploaded zip (if any)
-  uploadedFiles: {},              // Mapping from file path to file content from uploaded zip
+  // Removed uploadedFiles from state as file contents will now be stored in IndexedDB.
   failedFiles: new Set()          // Track files that failed to fetch
 };
 
@@ -35,7 +35,7 @@ export function saveStateToLocalStorage() {
   localStorage.setItem(STORAGE_KEYS.PROMPT_SELECTION, JSON.stringify([...state.selectedPrompts]));
   localStorage.setItem(STORAGE_KEYS.COLLAPSED_FOLDERS, JSON.stringify([...state.collapsedFolders]));
   localStorage.setItem(STORAGE_KEYS.UPLOADED_FILE_TREE, JSON.stringify(state.uploadedFileTree || {}));
-  localStorage.setItem(STORAGE_KEYS.UPLOADED_FILES, JSON.stringify(state.uploadedFiles || {}));
+  // Removed saving of uploadedFiles to avoid quota errors.
   localStorage.setItem(STORAGE_KEYS.FAILED_FILES, JSON.stringify([...state.failedFiles]));
 }
 
@@ -82,15 +82,7 @@ export function loadStateFromLocalStorage() {
       state.uploadedFileTree = null;
     }
   }
-  const savedUploadedFiles = localStorage.getItem(STORAGE_KEYS.UPLOADED_FILES);
-  if (savedUploadedFiles) {
-    try {
-      state.uploadedFiles = JSON.parse(savedUploadedFiles);
-    } catch (error) {
-      console.error('Failed to parse uploaded files:', error.message);
-      state.uploadedFiles = {};
-    }
-  }
+  // Removed loading of uploadedFiles.
   const savedFailedFiles = localStorage.getItem(STORAGE_KEYS.FAILED_FILES);
   if (savedFailedFiles) {
     try {

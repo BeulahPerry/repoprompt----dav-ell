@@ -6,6 +6,8 @@
 import { state, saveStateToLocalStorage } from './state.js';
 import { renderFileTree } from './fileTree.js';
 import { updateXMLPreview } from './xmlPreview.js';
+import { isTextFile } from './utils.js';
+import { putUploadedFile, clearUploadedFiles } from './db.js';
 
 /**
  * Handles the uploaded zip file.
@@ -17,7 +19,13 @@ export async function handleZipUpload(file) {
     const { tree, files } = await buildTreeFromZip(zip);
     state.rootDirectory = "Uploaded: " + file.name;
     state.uploadedFileTree = tree;
-    state.uploadedFiles = files;
+    // Store each text file in IndexedDB and skip non-text files
+    await clearUploadedFiles();
+    for (const [filePath, content] of Object.entries(files)) {
+      if (isTextFile(filePath)) {
+        await putUploadedFile(filePath, content);
+      }
+    }
     // Update file explorer UI with the uploaded file tree
     document.getElementById('file-list').innerHTML = renderFileTree(tree, "", true);
     // Update XML preview with the new context
@@ -31,6 +39,7 @@ export async function handleZipUpload(file) {
 
 /**
  * Builds a file tree and file content dictionary from the loaded zip.
+ * Only text files are included.
  * @param {JSZip} zip - The loaded zip object.
  * @returns {Object} - An object containing the file tree and files dictionary.
  */
@@ -44,6 +53,8 @@ async function buildTreeFromZip(zip) {
       // For directories, add to tree
       addToTree(tree, filePath, true);
     } else {
+      // Only process text files
+      if (!isTextFile(filePath)) continue;
       // For files, add to tree and extract content
       addToTree(tree, filePath, false);
       const content = await fileObj.async("text");
@@ -95,7 +106,7 @@ function addToTree(tree, filePath, isDir) {
 /**
  * Handles the uploaded folder.
  * Processes a folder selected via a file input (with webkitdirectory attribute)
- * and builds a file tree along with file contents.
+ * and builds a file tree along with file contents, filtering only text files.
  * @param {FileList} fileList - List of files selected from the folder.
  */
 export async function handleFolderUpload(fileList) {
@@ -103,7 +114,12 @@ export async function handleFolderUpload(fileList) {
     const { tree, files: fileContents, baseFolder } = await buildTreeFromFolder(fileList);
     state.rootDirectory = "Uploaded: " + baseFolder;
     state.uploadedFileTree = tree;
-    state.uploadedFiles = fileContents;
+    // Clear any previous uploaded files from IndexedDB
+    await clearUploadedFiles();
+    // Store each text file in IndexedDB
+    for (const [relativePath, content] of Object.entries(fileContents)) {
+      await putUploadedFile(relativePath, content);
+    }
     // Update file explorer UI with the uploaded folder tree
     document.getElementById('file-list').innerHTML = renderFileTree(tree, "", true);
     // Update XML preview with the new context
@@ -117,6 +133,7 @@ export async function handleFolderUpload(fileList) {
 
 /**
  * Builds a file tree and file content dictionary from the selected folder.
+ * Only text files are included.
  * @param {FileList} fileList - The FileList from the folder upload input.
  * @returns {Object} - An object containing the file tree, files mapping, and base folder name.
  */
@@ -133,9 +150,10 @@ async function buildTreeFromFolder(fileList) {
     baseFolder = parts.length > 1 ? parts[0] : "";
   }
   
-  // Process each file: build the tree structure and read file content
+  // Process each file: build the tree structure and read file content only if it is a text file
   for (const file of fileArray) {
     const relativePath = file.webkitRelativePath;
+    if (!isTextFile(relativePath)) continue; // Skip non-text files
     addToTreeFromFolder(tree, relativePath);
     const content = await file.text();
     files[relativePath] = content;

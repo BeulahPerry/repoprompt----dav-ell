@@ -13,14 +13,17 @@
       <div class="user-input">
         <textarea id="user-instructions" placeholder="Type your instructions here..." rows="7"></textarea>
       </div>
-      <!-- Endpoint Input with Connect button and Upload button -->
+      <!-- Endpoint Input with Connect button and Upload buttons -->
       <div class="endpoint-input">
         <label for="endpoint-url">Endpoint URL:</label>
         <input type="text" id="endpoint-url" placeholder="http://localhost:3000">
         <button id="connect-endpoint">Connect</button>
-           or <button id="upload-btn">Upload!</button>
+        &nbsp;&nbsp;&nbsp;or<button id="upload-btn">Upload ZIP</button>
         <!-- Hidden file input for zip files -->
         <input type="file" id="zip-upload" accept=".zip" style="display:none;">
+        <!-- New button and input for folder upload -->
+        &nbsp;&nbsp;&nbsp;or<button id="upload-folder-btn">Upload Folder</button>
+        <input type="file" id="folder-upload" webkitdirectory directory multiple style="display:none;">
         <span id="connection-status"></span>
       </div>
       <!-- Directory Path Input with Update button -->

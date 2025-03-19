@@ -9,7 +9,7 @@ import { generateFileExplorer } from './explorer.js';
 import { checkConnection } from './connection.js';
 import { loadPromptsFromStorage, renderPromptCheckboxes } from './prompts.js';
 import { initPromptModal } from './promptModal.js';
-import { handleZipUpload } from './uploader.js';
+import { handleZipUpload, handleFolderUpload } from './uploader.js';
 import { refreshSelectedFiles } from './fileContent.js'; // Added for polling refresh
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -102,6 +102,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Setup the folder upload button and file input event listeners.
+  const uploadFolderBtn = document.getElementById('upload-folder-btn');
+  const folderInput = document.getElementById('folder-upload');
+  uploadFolderBtn.addEventListener('click', () => {
+    folderInput.click();
+  });
+  folderInput.addEventListener('change', async (event) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      await handleFolderUpload(files);
+    }
+  });
+
   // Start polling for file updates
   startPolling();
 });
@@ -113,7 +126,7 @@ function startPolling() {
   const POLLING_INTERVAL = 10000; // 10 seconds in milliseconds
 
   const poll = async () => {
-    if (!state.uploadedFileTree) { // Only poll if not using an uploaded zip
+    if (!state.uploadedFileTree) { // Only poll if not using an uploaded zip or folder
       console.log('Polling for file updates...');
       await refreshSelectedFiles();
       await updateXMLPreview(true); // Force full update

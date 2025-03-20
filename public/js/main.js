@@ -61,21 +61,52 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('user-instructions').addEventListener('input', debouncedUpdate);
   document.getElementById('file-list').addEventListener('click', handleFileSelection);
   
-  // Copy XML to clipboard with feedback; note that we no longer refresh file contents on copy.
+  // Updated copy XML event handler with Clipboard API fallback.
   document.getElementById('copy-btn').addEventListener('click', async () => {
     await updateXMLPreview(true); // Force full update of the XML preview without re-fetching file contents.
     const xmlText = document.getElementById('xml-output').textContent;
     const feedbackElement = document.getElementById('copy-feedback');
     
-    navigator.clipboard.writeText(xmlText)
-      .then(() => {
-        feedbackElement.classList.add('show');
-        console.log('XML copied to clipboard');
-        setTimeout(() => {
-          feedbackElement.classList.remove('show');
-        }, 1000);
-      })
-      .catch(err => console.error('Failed to copy XML: ', err));
+    // Check if Clipboard API is available.
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(xmlText)
+        .then(() => {
+          feedbackElement.classList.add('show');
+          console.log('XML copied to clipboard');
+          setTimeout(() => {
+            feedbackElement.classList.remove('show');
+          }, 1000);
+        })
+        .catch(err => console.error('Failed to copy XML: ', err));
+    } else {
+      // Fallback for older browsers: create a temporary textarea.
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = xmlText;
+      // Avoid scrolling to bottom.
+      tempTextArea.style.position = 'fixed';
+      tempTextArea.style.top = '0';
+      tempTextArea.style.left = '0';
+      tempTextArea.style.opacity = '0';
+      document.body.appendChild(tempTextArea);
+      tempTextArea.focus();
+      tempTextArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          feedbackElement.classList.add('show');
+          console.log('XML copied to clipboard using fallback');
+          setTimeout(() => {
+            feedbackElement.classList.remove('show');
+          }, 1000);
+        } else {
+          console.error('Fallback: Copy command was unsuccessful');
+        }
+      } catch (err) {
+        console.error('Fallback: Oops, unable to copy', err);
+      }
+      document.body.removeChild(tempTextArea);
+    }
   });
 
   // Update directory when the user clicks the update button.

@@ -60,7 +60,7 @@ export async function fetchFileContent(fileNode) {
 }
 
 /**
- * Refreshes the content of all selected files by clearing their cache and re-fetching.
+ * Refreshes the content of all selected files by clearing their cache and re-fetching asynchronously.
  * @returns {Promise<void>}
  */
 export async function refreshSelectedFiles() {
@@ -75,10 +75,11 @@ export async function refreshSelectedFiles() {
     return;
   }
 
-  console.log(`Refreshing content for ${selectedFiles.length} selected files...`);
-  for (const fileNode of selectedFiles) {
+  console.log(`Refreshing content for ${selectedFiles.length} selected files asynchronously...`);
+  // Delete cache for each file and refresh concurrently using Promise.all
+  await Promise.all(selectedFiles.map(fileNode => {
     state.fileCache.delete(fileNode.path); // Clear cache to force re-fetch
-    await fetchFileContent(fileNode); // Re-fetch content
-  }
+    return fetchFileContent(fileNode); // Re-fetch content concurrently
+  }));
   console.log('Selected file contents refreshed.');
 }

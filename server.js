@@ -8,6 +8,7 @@ const path = require('path');
 const ignore = require('ignore');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const chokidar = require('chokidar'); // Added for file monitoring
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -229,6 +230,66 @@ app.get('/api/connect', (req, res) => {
     log(errorMsg, 'ERROR');
     res.status(500).json({ success: false, error: errorMsg });
   }
+});
+
+// NEW: API endpoint to provide configuration values
+app.get('/api/config', (req, res) => {
+  const refreshInterval = process.env.REFRESH_INTERVAL ? Number(process.env.REFRESH_INTERVAL) : 10000;
+  res.json({ success: true, refreshInterval });
+});
+
+// NEW: SSE endpoint for file change monitoring
+const MAX_WATCH_FILES = 1000;
+app.get('/api/subscribe', (req, res) => {
+  // Set headers for SSE
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  });
+  res.flushHeaders();
+
+  let files;
+  try {
+    files = JSON.parse(req.query.files);
+  } catch (e) {
+    res.write(`event: error\ndata: Invalid files parameter\n\n`);
+    return res.end();
+  }
+  if (!Array.isArray(files)) {
+    res.write(`event: error\ndata: Files parameter must be an array\n\n`);
+    return res.end();
+  }
+  if (files.length > MAX_WATCH_FILES) {
+    res.write(`event: error\ndata: Too many files selected for real-time monitoring. Maximum allowed is ${MAX_WATCH_FILES}.\n\n`);
+    return res.end();
+  }
+
+  // Validate each file path
+  let validFiles = [];
+  for (let filePath of files) {
+    try {
+      validFiles.push(validatePath(filePath));
+    } catch (e) {
+      // Skip invalid file paths
+    }
+  }
+
+  const watcher = chokidar.watch(validFiles, { ignoreInitial: true });
+
+  watcher.on('change', (changedPath) => {
+    res.write(`event: fileUpdate\ndata: ${changedPath}\n\n`);
+  });
+
+  watcher.on('error', (error) => {
+    res.write(`event: error\ndata: ${error.message}\n\n`);
+  });
+
+  // Cleanup when client disconnects
+  req.on('close', () => {
+    watcher.close();
+    res.end();
+  });
 });
 
 // Static files middleware (moved after API routes)

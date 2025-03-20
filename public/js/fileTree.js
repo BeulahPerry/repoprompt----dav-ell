@@ -270,4 +270,7 @@ export function handleFileSelection(event) {
   import('./state.js').then(module => {
     module.saveStateToLocalStorage();
   });
+
+  // NEW: Dispatch an event to signal that file selection has changed
+  document.dispatchEvent(new Event('fileSelectionChanged'));
 }

@@ -10,7 +10,7 @@ import { checkConnection } from './connection.js';
 import { loadPromptsFromStorage, renderPromptCheckboxes } from './prompts.js';
 import { initPromptModal } from './promptModal.js';
 import { handleZipUpload, handleFolderUpload } from './uploader.js';
-import { refreshSelectedFiles } from './fileContent.js'; // Added for polling refresh
+import { refreshSelectedFiles } from './fileContent.js'; // Added for file refresh after updates
 
 document.addEventListener('DOMContentLoaded', () => {
   // Load saved state from localStorage.
@@ -41,7 +41,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     updateXMLPreview();
   } else {
-    generateFileExplorer();
+    generateFileExplorer().then(() => {
+      // After generating the explorer, subscribe for file updates.
+      subscribeToFileUpdates();
+    });
   }
 
   // Debounce updating the XML preview when user instructions change.
@@ -84,6 +87,8 @@ document.addEventListener('DOMContentLoaded', () => {
     state.uploadedFiles = {};
     await generateFileExplorer();
     saveStateToLocalStorage();
+    // Re-subscribe for file updates after updating the directory
+    subscribeToFileUpdates();
   });
 
   // Check connection when the user clicks the connect button.
@@ -99,6 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const file = event.target.files[0];
     if (file) {
       await handleZipUpload(file);
+      // Re-subscribe after uploading new files
+      subscribeToFileUpdates();
     }
   });
 
@@ -112,36 +119,56 @@ document.addEventListener('DOMContentLoaded', () => {
     const files = event.target.files;
     if (files && files.length > 0) {
       await handleFolderUpload(files);
+      // Re-subscribe after uploading new files
+      subscribeToFileUpdates();
     }
   });
-
-  // Start polling for file updates
-  startPolling();
+  
+  // Listen for file selection changes and re-subscribe for updates.
+  document.addEventListener('fileSelectionChanged', () => {
+    subscribeToFileUpdates();
+  });
 });
 
 /**
- * Starts polling to refresh selected file contents every 10 seconds.
+ * Subscribes to the server’s file change notifications using Server-Sent Events (SSE).
+ * If the number of selected files exceeds a predefined limit, an error is shown.
  */
-function startPolling() {
-  const POLLING_INTERVAL = 10000; // 10 seconds in milliseconds
-
-  const poll = async () => {
-    if (!state.uploadedFileTree) { // Only poll if not using an uploaded zip or folder
-      console.log('Polling for file updates...');
-      await refreshSelectedFiles();
-      await updateXMLPreview(true); // Force full update
+function subscribeToFileUpdates() {
+  // If an existing EventSource exists, close it before re-subscribing.
+  if (state.eventSource) {
+    state.eventSource.close();
+  }
+  
+  // Get selected file paths from the current selected tree.
+  import('./fileTree.js').then(module => {
+    const selectedPaths = module.getSelectedPaths(state.selectedTree);
+    if (selectedPaths.length === 0) {
+      console.log("No files selected for monitoring.");
+      return;
     }
-  };
+    const queryParam = encodeURIComponent(JSON.stringify(selectedPaths));
+    const eventSourceUrl = `${state.baseEndpoint}/api/subscribe?files=${queryParam}`;
+    const eventSource = new EventSource(eventSourceUrl);
 
-  // Initial call
-  poll();
+    eventSource.onmessage = (event) => {
+      // Generic messages (if any) can be handled here.
+    };
 
-  // Set interval for subsequent polls
-  const intervalId = setInterval(poll, POLLING_INTERVAL);
+    eventSource.addEventListener('fileUpdate', async (event) => {
+      console.log(`File update detected: ${event.data}`);
+      // Refresh file content for updated files and update XML preview.
+      await refreshSelectedFiles();
+      await updateXMLPreview(true);
+    });
 
-  // Cleanup on window unload to prevent memory leaks
-  window.addEventListener('unload', () => {
-    clearInterval(intervalId);
-    console.log('Polling stopped due to window unload');
+    eventSource.addEventListener('error', (event) => {
+      console.error(`Error from file monitoring: ${event.data}`);
+      // Optionally, display an error to the user or handle reconnection logic.
+      eventSource.close();
+    });
+    
+    // Save the EventSource so that we can close it later if needed.
+    state.eventSource = eventSource;
   });
 }

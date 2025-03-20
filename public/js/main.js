@@ -25,6 +25,11 @@ document.addEventListener('DOMContentLoaded', () => {
   if (state.baseEndpoint) {
     endpointInput.value = state.baseEndpoint;
   }
+  // Set the user instructions textarea with saved instructions.
+  const userInstructionsInput = document.getElementById('user-instructions');
+  if (state.userInstructions) {
+    userInstructionsInput.value = state.userInstructions;
+  }
 
   // Load available prompts from localStorage and render prompt checkboxes.
   loadPromptsFromStorage();

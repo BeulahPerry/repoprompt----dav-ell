@@ -9,7 +9,8 @@ export const STORAGE_KEYS = {
   COLLAPSED_FOLDERS: 'repoPrompt_collapsedFolders',
   UPLOADED_FILE_TREE: 'repoPrompt_uploadedFileTree',
   // Removed UPLOADED_FILES key to avoid storing large file contents in localStorage.
-  FAILED_FILES: 'repoPrompt_failedFiles' // Added for failed file tracking
+  FAILED_FILES: 'repoPrompt_failedFiles', // Added for failed file tracking
+  USER_INSTRUCTIONS: 'repoPrompt_userInstructions' // New key for saving user instructions
 };
 
 export const state = {
@@ -37,6 +38,8 @@ export function saveStateToLocalStorage() {
   localStorage.setItem(STORAGE_KEYS.UPLOADED_FILE_TREE, JSON.stringify(state.uploadedFileTree || {}));
   // Removed saving of uploadedFiles to avoid quota errors.
   localStorage.setItem(STORAGE_KEYS.FAILED_FILES, JSON.stringify([...state.failedFiles]));
+  // Save user instructions
+  localStorage.setItem(STORAGE_KEYS.USER_INSTRUCTIONS, state.userInstructions);
 }
 
 /**
@@ -91,5 +94,10 @@ export function loadStateFromLocalStorage() {
       console.error('Failed to parse saved failed files:', error.message);
       state.failedFiles = new Set();
     }
+  }
+  // Load user instructions if available
+  const savedUserInstructions = localStorage.getItem(STORAGE_KEYS.USER_INSTRUCTIONS);
+  if (savedUserInstructions) {
+    state.userInstructions = savedUserInstructions;
   }
 }

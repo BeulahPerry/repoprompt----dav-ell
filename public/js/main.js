@@ -10,7 +10,7 @@ import { checkConnection } from './connection.js';
 import { loadPromptsFromStorage, renderPromptCheckboxes } from './prompts.js';
 import { initPromptModal } from './promptModal.js';
 import { handleZipUpload, handleFolderUpload } from './uploader.js';
-import { refreshSelectedFiles } from './fileContent.js'; // Added for file refresh after updates
+import { refreshSelectedFiles } from './fileContent.js'; // Still imported for file updates via SSE
 
 document.addEventListener('DOMContentLoaded', () => {
   // Load saved state from localStorage.
@@ -56,10 +56,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('user-instructions').addEventListener('input', debouncedUpdate);
   document.getElementById('file-list').addEventListener('click', handleFileSelection);
   
-  // Copy XML to clipboard with feedback after refreshing file contents.
+  // Copy XML to clipboard with feedback; note that we no longer refresh file contents on copy.
   document.getElementById('copy-btn').addEventListener('click', async () => {
-    await refreshSelectedFiles(); // Refresh file contents before copying
-    await updateXMLPreview(true); // Force full update after refresh
+    await updateXMLPreview(true); // Force full update of the XML preview without re-fetching file contents.
     const xmlText = document.getElementById('xml-output').textContent;
     const feedbackElement = document.getElementById('copy-feedback');
     

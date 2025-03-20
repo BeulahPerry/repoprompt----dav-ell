@@ -319,15 +319,15 @@ if (process.env.USE_HTTPS === 'true') {
     const key = fsSync.readFileSync(path.join(__dirname, 'server.key'));
     const options = { key, cert };
 
-    https.createServer(options, app).listen(port, () => {
-      log(`HTTPS Server running at https://localhost:${port}`);
+    https.createServer(options, app).listen(port, '0.0.0.0', () => {
+      log(`HTTPS Server running at https://0.0.0.0:${port}`);
     });
   } catch (error) {
     log(`Failed to start HTTPS server: ${error.message}`, 'ERROR');
     process.exit(1);
   }
 } else {
-  app.listen(port, () => {
-    log(`Server running at http://localhost:${port}`);
+  app.listen(port, '0.0.0.0', () => {
+    log(`Server running at http://0.0.0.0:${port}`);
   });
 }

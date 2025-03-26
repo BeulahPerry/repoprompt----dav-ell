@@ -4,6 +4,7 @@
 const express = require('express');
 const fs = require('fs').promises;
 const fsSync = require('fs');
+const fsConstants = require('fs').constants;
 const path = require('path');
 const ignore = require('ignore');
 const cors = require('cors');
@@ -14,6 +15,7 @@ const port = process.env.PORT || 3000;
 
 // Load environment variables from .env file
 dotenv.config();
+console.log('PORT from .env:', process.env.PORT);
 
 // Utility function for logging
 const log = (message, level = 'INFO') => {
@@ -112,7 +114,7 @@ app.get('/api/directory', async (req, res) => {
   }
 
   try {
-    await fs.access(dirPath, fs.constants.R_OK); // Check read access
+    await fs.access(dirPath, fsConstants.R_OK);; // Check read access
     log(`Processing directory: ${dirPath}`);
 
     let ig = ignore();

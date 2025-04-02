@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { updateXMLPreview } from './xmlPreview.js';
 import { sortTreeEntries, isTextFile } from './utils.js'; // Added isTextFile import
+import { generateFileExplorer } from './explorer.js'; // Import to trigger refresh
 
 /**
  * Recursively renders the file tree into an HTML unordered list.
@@ -251,11 +252,17 @@ export function handleFileSelection(event) {
       li.classList.remove('selected');
       delete li.dataset.userClicked; // Clear user-clicked flag
       toggleFolderChildren(li, false);
+      // Refresh file explorer to update tree
+      generateFileExplorer(); // Trigger refresh after deselecting
     }
   } else if (isTextFile) {
     // For text files only, toggle selection
     li.classList.toggle('selected');
     li.dataset.userClicked = true;
+    // If the file was deselected (no longer selected), refresh the file explorer
+    if (!li.classList.contains('selected')) {
+      generateFileExplorer(); // Trigger refresh after deselecting
+    }
   } else {
     // Non-text files are not selectable; log and return
     console.log(`Non-text file clicked, selection prevented: ${li.textContent.trim()}`);

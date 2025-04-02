@@ -10,8 +10,19 @@ export const STORAGE_KEYS = {
   UPLOADED_FILE_TREE: 'repoPrompt_uploadedFileTree',
   // Removed UPLOADED_FILES key to avoid storing large file contents in localStorage.
   FAILED_FILES: 'repoPrompt_failedFiles', // Added for failed file tracking
-  USER_INSTRUCTIONS: 'repoPrompt_userInstructions' // New key for saving user instructions
+  USER_INSTRUCTIONS: 'repoPrompt_userInstructions', // New key for saving user instructions
+  WHITELIST: 'repoPrompt_whitelist' // New key for whitelist persistence
 };
+
+// Default whitelist of allowed text file extensions.
+// Added "dockerfile*" to support Dockerfile variants.
+const defaultWhitelist = [
+  'dockerfile*',
+  '.txt', '.md', '.json', '.xml', '.html', '.css', '.js', '.py', '.java', '.c', 
+  '.cpp', '.h', '.hpp', '.sh', '.bat', '.yml', '.yaml', '.ini', '.cfg', '.conf',
+  '.log', '.csv', '.ts', '.jsx', '.tsx', '.php', '.rb', '.go', '.rs', '.swift',
+  '.kt', '.kts', '.scala', '.pl', '.pm', '.r', '.sql', '.dart', '.lua'
+];
 
 export const state = {
   fileCache: new Map(),           // Cache for file contents
@@ -24,7 +35,8 @@ export const state = {
   baseEndpoint: "http://localhost:3000", // Base endpoint URL
   uploadedFileTree: null,         // File tree from uploaded zip (if any)
   // Removed uploadedFiles from state as file contents will now be stored in IndexedDB.
-  failedFiles: new Set()          // Track files that failed to fetch
+  failedFiles: new Set(),         // Track files that failed to fetch
+  whitelist: new Set(defaultWhitelist) // New whitelist property
 };
 
 /**
@@ -40,6 +52,8 @@ export function saveStateToLocalStorage() {
   localStorage.setItem(STORAGE_KEYS.FAILED_FILES, JSON.stringify([...state.failedFiles]));
   // Save user instructions
   localStorage.setItem(STORAGE_KEYS.USER_INSTRUCTIONS, state.userInstructions);
+  // Save whitelist
+  localStorage.setItem(STORAGE_KEYS.WHITELIST, JSON.stringify([...state.whitelist]));
 }
 
 /**
@@ -100,4 +114,17 @@ export function loadStateFromLocalStorage() {
   if (savedUserInstructions) {
     state.userInstructions = savedUserInstructions;
   }
+  // Load whitelist from storage; if not available, use defaultWhitelist.
+  const savedWhitelist = localStorage.getItem(STORAGE_KEYS.WHITELIST);
+  if (savedWhitelist) {
+    try {
+      state.whitelist = new Set(JSON.parse(savedWhitelist));
+    } catch (error) {
+      console.error('Failed to parse saved whitelist:', error.message);
+      state.whitelist = new Set(defaultWhitelist);
+    }
+  } else {
+    state.whitelist = new Set(defaultWhitelist);
+  }
+  // Note: Removed merging of defaultWhitelist items to preserve user removals.
 }

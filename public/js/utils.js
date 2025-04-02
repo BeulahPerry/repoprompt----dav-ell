@@ -1,6 +1,8 @@
 // public/js/utils.js
 // Contains utility helper functions.
 
+import { state } from './state.js';
+
 /**
  * Determines the programming language based on a file's extension for syntax highlighting.
  * @param {string} fileName - The name of the file.
@@ -16,18 +18,27 @@ export function getLanguage(fileName) {
 }
 
 /**
- * Determines if a file is a text file based on its extension.
- * @param {string} fileName - The name of the file.
+ * Determines if a file is a text file based on its extension using the dynamic whitelist from the application state.
+ * Supports wildcard patterns (e.g., "dockerfile*").
+ * The check is performed on the base name of the file to handle full paths correctly.
+ * @param {string} fileName - The full file path or name.
  * @returns {boolean} - True if the file is a text file, false otherwise.
  */
 export function isTextFile(fileName) {
-  const textExtensions = [
-    '.txt', '.md', '.json', '.xml', '.html', '.css', '.js', '.py', '.java', '.c', 
-    '.cpp', '.h', '.hpp', '.sh', '.bat', '.yml', '.yaml', '.ini', '.cfg', '.conf',
-    '.log', '.csv', '.ts', '.jsx', '.tsx', '.php', '.rb', '.go', '.rs', '.swift',
-    '.kt', '.kts', '.scala', '.pl', '.pm', '.r', '.sql', '.dart', '.lua'
-  ];
-  return textExtensions.some(ext => fileName.toLowerCase().endsWith(ext));
+  // Extract the base name (i.e., the file name without the directory path)
+  const baseName = fileName.split('/').pop();
+  return Array.from(state.whitelist).some(pattern => {
+    if (pattern.includes("*")) {
+      // Escape regex special characters except for *
+      const escaped = pattern.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&');
+      // Replace * with .*
+      const regexPattern = '^' + escaped.replace(/\*/g, '.*') + '$';
+      const regex = new RegExp(regexPattern, 'i');
+      return regex.test(baseName);
+    } else {
+      return baseName.toLowerCase().endsWith(pattern.toLowerCase());
+    }
+  });
 }
 
 /**

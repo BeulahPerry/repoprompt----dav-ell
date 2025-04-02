@@ -9,6 +9,7 @@ import { generateFileExplorer } from './explorer.js';
 import { checkConnection } from './connection.js';
 import { loadPromptsFromStorage, renderPromptCheckboxes } from './prompts.js';
 import { initPromptModal } from './promptModal.js';
+import { initWhitelistModal } from './whitelist.js';
 import { handleZipUpload, handleFolderUpload } from './uploader.js';
 import { refreshSelectedFiles } from './fileContent.js'; // Still imported for file updates via SSE
 
@@ -37,6 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize prompt modal functionality.
   initPromptModal();
+  // Initialize whitelist modal functionality.
+  initWhitelistModal();
 
   // If there is an uploaded file tree, use it to generate the file explorer;
   // otherwise, load from the server.

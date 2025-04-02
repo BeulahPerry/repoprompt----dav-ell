@@ -1,5 +1,8 @@
 // public/js/state.js
-// Manages application state and localStorage persistence.
+// Manages application state and persistence.
+// We now persist large state properties (uploaded file tree, failed files, and file selections) in IndexedDB via stateDB.js.
+
+import { getState, setState } from './stateDB.js';
 
 export const STORAGE_KEYS = {
   DIRECTORY_PATH: 'repoPrompt_directoryPath',
@@ -8,10 +11,9 @@ export const STORAGE_KEYS = {
   FILE_SELECTION: 'repoPrompt_fileSelection',
   COLLAPSED_FOLDERS: 'repoPrompt_collapsedFolders',
   UPLOADED_FILE_TREE: 'repoPrompt_uploadedFileTree',
-  // Removed UPLOADED_FILES key to avoid storing large file contents in localStorage.
-  FAILED_FILES: 'repoPrompt_failedFiles', // Added for failed file tracking
-  USER_INSTRUCTIONS: 'repoPrompt_userInstructions', // New key for saving user instructions
-  WHITELIST: 'repoPrompt_whitelist' // New key for whitelist persistence
+  FAILED_FILES: 'repoPrompt_failedFiles',
+  USER_INSTRUCTIONS: 'repoPrompt_userInstructions',
+  WHITELIST: 'repoPrompt_whitelist'
 };
 
 // Default whitelist of allowed text file extensions.
@@ -34,32 +36,33 @@ export const state = {
   rootDirectory: null,            // Current directory path
   baseEndpoint: "http://localhost:3000", // Base endpoint URL
   uploadedFileTree: null,         // File tree from uploaded zip (if any)
-  // Removed uploadedFiles from state as file contents will now be stored in IndexedDB.
   failedFiles: new Set(),         // Track files that failed to fetch
   whitelist: new Set(defaultWhitelist) // New whitelist property
 };
 
 /**
- * Saves the current application state to localStorage.
+ * Saves the current application state.
+ * Small properties are saved in localStorage; larger objects are saved in IndexedDB.
  */
-export function saveStateToLocalStorage() {
+export async function saveStateToLocalStorage() {
   localStorage.setItem(STORAGE_KEYS.DIRECTORY_PATH, state.rootDirectory || '');
   localStorage.setItem(STORAGE_KEYS.ENDPOINT_URL, state.baseEndpoint);
   localStorage.setItem(STORAGE_KEYS.PROMPT_SELECTION, JSON.stringify([...state.selectedPrompts]));
   localStorage.setItem(STORAGE_KEYS.COLLAPSED_FOLDERS, JSON.stringify([...state.collapsedFolders]));
-  localStorage.setItem(STORAGE_KEYS.UPLOADED_FILE_TREE, JSON.stringify(state.uploadedFileTree || {}));
-  // Removed saving of uploadedFiles to avoid quota errors.
-  localStorage.setItem(STORAGE_KEYS.FAILED_FILES, JSON.stringify([...state.failedFiles]));
-  // Save user instructions
   localStorage.setItem(STORAGE_KEYS.USER_INSTRUCTIONS, state.userInstructions);
-  // Save whitelist
   localStorage.setItem(STORAGE_KEYS.WHITELIST, JSON.stringify([...state.whitelist]));
+
+  // Save larger state items to IndexedDB
+  await setState(STORAGE_KEYS.UPLOADED_FILE_TREE, state.uploadedFileTree || {});
+  await setState(STORAGE_KEYS.FAILED_FILES, [...state.failedFiles]);
+  // FILE_SELECTION is now managed in fileTree.js via IndexedDB.
 }
 
 /**
- * Loads the application state from localStorage.
+ * Loads the application state.
+ * Small properties are loaded from localStorage; larger objects are loaded from IndexedDB.
  */
-export function loadStateFromLocalStorage() {
+export async function loadStateFromLocalStorage() {
   const savedDirectory = localStorage.getItem(STORAGE_KEYS.DIRECTORY_PATH);
   if (savedDirectory) {
     state.rootDirectory = savedDirectory;
@@ -89,32 +92,7 @@ export function loadStateFromLocalStorage() {
       state.collapsedFolders = new Set();
     }
   }
-  const savedUploadedTree = localStorage.getItem(STORAGE_KEYS.UPLOADED_FILE_TREE);
-  if (savedUploadedTree) {
-    try {
-      const tree = JSON.parse(savedUploadedTree);
-      state.uploadedFileTree = Object.keys(tree).length > 0 ? tree : null;
-    } catch (error) {
-      console.error('Failed to parse uploaded file tree:', error.message);
-      state.uploadedFileTree = null;
-    }
-  }
-  // Removed loading of uploadedFiles.
-  const savedFailedFiles = localStorage.getItem(STORAGE_KEYS.FAILED_FILES);
-  if (savedFailedFiles) {
-    try {
-      state.failedFiles = new Set(JSON.parse(savedFailedFiles));
-    } catch (error) {
-      console.error('Failed to parse saved failed files:', error.message);
-      state.failedFiles = new Set();
-    }
-  }
-  // Load user instructions if available
-  const savedUserInstructions = localStorage.getItem(STORAGE_KEYS.USER_INSTRUCTIONS);
-  if (savedUserInstructions) {
-    state.userInstructions = savedUserInstructions;
-  }
-  // Load whitelist from storage; if not available, use defaultWhitelist.
+  state.userInstructions = localStorage.getItem(STORAGE_KEYS.USER_INSTRUCTIONS) || state.userInstructions;
   const savedWhitelist = localStorage.getItem(STORAGE_KEYS.WHITELIST);
   if (savedWhitelist) {
     try {
@@ -126,5 +104,13 @@ export function loadStateFromLocalStorage() {
   } else {
     state.whitelist = new Set(defaultWhitelist);
   }
-  // Note: Removed merging of defaultWhitelist items to preserve user removals.
+  // Load larger state items from IndexedDB
+  const uploadedTree = await getState(STORAGE_KEYS.UPLOADED_FILE_TREE);
+  state.uploadedFileTree = (uploadedTree && Object.keys(uploadedTree).length > 0) ? uploadedTree : null;
+  const failedFiles = await getState(STORAGE_KEYS.FAILED_FILES);
+  try {
+    state.failedFiles = new Set(Array.isArray(failedFiles) ? failedFiles : []);
+  } catch (error) {
+    state.failedFiles = new Set();
+  }
 }

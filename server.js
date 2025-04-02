@@ -10,12 +10,20 @@ const ignore = require('ignore');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const chokidar = require('chokidar'); // Added for file monitoring
+const compression = require('compression'); // Added compression middleware
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Load environment variables from .env file
 dotenv.config();
 console.log('PORT from .env:', process.env.PORT);
+
+// Use compression middleware to improve performance with many files
+app.use(compression());
+
+// Increase the JSON body limit to handle large batch requests
+app.use(express.json({ limit: '50mb' }));
+app.use(cors());
 
 // Utility function for logging
 const log = (message, level = 'INFO') => {
@@ -36,10 +44,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware
-app.use(express.json());
-app.use(cors());
-
 // Helper function to validate and sanitize a given path
 const validatePath = (requestedPath) => {
   // Resolve to absolute path to prevent relative path issues
@@ -54,6 +58,29 @@ const validatePath = (requestedPath) => {
   log(`Resolved path: ${resolvedPath}`, 'DEBUG');
   return resolvedPath;
 };
+
+// NEW: Helper function to compute the minimal set of directories to watch
+function getMinimalDirs(filePaths) {
+  const dirs = new Set();
+  filePaths.forEach(file => {
+    try {
+      const dir = path.dirname(file);
+      dirs.add(dir);
+    } catch (e) {
+      // Ignore errors in extracting dirname
+    }
+  });
+  // Convert to an array and sort alphabetically
+  const minimalDirs = Array.from(dirs).sort();
+  const result = [];
+  // Only add a directory if it is not a subdirectory of an already-added directory
+  minimalDirs.forEach(dir => {
+    if (!result.some(parent => dir === parent || dir.startsWith(parent + path.sep))) {
+      result.push(dir);
+    }
+  });
+  return result;
+}
 
 // Custom natural compare function for sorting
 function naturalCompare(a, b) {
@@ -102,6 +129,26 @@ const sortDirents = (dirents) => {
   return [...folders, ...files].map(item => dirents.find(d => d.name === item.name));
 };
 
+// NEW: Helper function to read files in chunks (concurrency limit)
+async function readFilesInChunks(paths, chunkSize) {
+  const filesResult = {};
+  for (let i = 0; i < paths.length; i += chunkSize) {
+    const chunk = paths.slice(i, i + chunkSize);
+    const promises = chunk.map(async filePath => {
+      try {
+        const validPath = validatePath(filePath);
+        await fs.access(validPath, fsConstants.R_OK);
+        const content = await fs.readFile(validPath, 'utf8');
+        filesResult[filePath] = { success: true, content };
+      } catch (error) {
+        filesResult[filePath] = { success: false, error: error.message };
+      }
+    });
+    await Promise.all(promises);
+  }
+  return filesResult;
+}
+
 // API to get directory contents
 app.get('/api/directory', async (req, res) => {
   let requestedPath = req.query.path || process.cwd(); // Default to current working directory
@@ -114,7 +161,7 @@ app.get('/api/directory', async (req, res) => {
   }
 
   try {
-    await fs.access(dirPath, fsConstants.R_OK);; // Check read access
+    await fs.access(dirPath, fsConstants.R_OK); // Check read access
     log(`Processing directory: ${dirPath}`);
 
     let ig = ignore();
@@ -214,6 +261,22 @@ app.get('/api/file', async (req, res) => {
   }
 });
 
+// NEW: API endpoint to fetch multiple files in a single request using chunked processing
+app.post('/api/files', async (req, res) => {
+  const paths = req.body.paths;
+  if (!paths || !Array.isArray(paths)) {
+    return res.status(400).json({ success: false, error: "Invalid request body: 'paths' array required." });
+  }
+  try {
+    // Process file reads in chunks with a concurrency limit (e.g., 50)
+    const filesResult = await readFilesInChunks(paths, 50);
+    res.json({ success: true, files: filesResult });
+  } catch (error) {
+    log(`Error in batch file fetch: ${error.message}`, 'ERROR');
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // API to check server connection status
 app.get('/api/connect', (req, res) => {
   try {
@@ -240,8 +303,7 @@ app.get('/api/config', (req, res) => {
   res.json({ success: true, refreshInterval });
 });
 
-// NEW: SSE endpoint for file change monitoring
-const MAX_WATCH_FILES = 1000;
+// NEW: SSE endpoint for file change monitoring using backend batching and filtering
 app.get('/api/subscribe', (req, res) => {
   // Set headers for SSE
   res.writeHead(200, {
@@ -251,36 +313,51 @@ app.get('/api/subscribe', (req, res) => {
   });
   res.flushHeaders();
 
-  let files;
+  // Parse and validate the directory parameter
+  let directory;
   try {
-    files = JSON.parse(req.query.files);
+    directory = validatePath(req.query.directory);
+  } catch (e) {
+    res.write(`event: error\ndata: Invalid directory parameter: ${e.message}\n\n`);
+    return res.end();
+  }
+
+  // Expect the client to send a minimal list of directories (instead of thousands of file paths)
+  let selectedDirs;
+  try {
+    selectedDirs = JSON.parse(req.query.files);
   } catch (e) {
     res.write(`event: error\ndata: Invalid files parameter\n\n`);
     return res.end();
   }
-  if (!Array.isArray(files)) {
-    res.write(`event: error\ndata: Files parameter must be an array\n\n`);
-    return res.end();
-  }
-  if (files.length > MAX_WATCH_FILES) {
-    res.write(`event: error\ndata: Too many files selected for real-time monitoring. Maximum allowed is ${MAX_WATCH_FILES}.\n\n`);
-    return res.end();
-  }
 
-  // Validate each file path
-  let validFiles = [];
-  for (let filePath of files) {
-    try {
-      validFiles.push(validatePath(filePath));
-    } catch (e) {
-      // Skip invalid file paths
+  log(`Received subscription for directories: ${selectedDirs.join(', ')}`, 'DEBUG');
+
+  // Create a chokidar watcher on the minimal directories
+  const watcher = chokidar.watch(selectedDirs, { ignoreInitial: true, persistent: true });
+
+  // Setup batching for file change events with debouncing
+  let batchedChanges = new Set();
+  let debounceTimeout = null;
+
+  watcher.on('all', (event, changedPath) => {
+    // Check if the changedPath starts with any of the subscribed directories
+    let matches = false;
+    for (const dir of selectedDirs) {
+      if (changedPath.startsWith(dir)) {
+        matches = true;
+        break;
+      }
     }
-  }
-
-  const watcher = chokidar.watch(validFiles, { ignoreInitial: true });
-
-  watcher.on('change', (changedPath) => {
-    res.write(`event: fileUpdate\ndata: ${changedPath}\n\n`);
+    if (matches) {
+      batchedChanges.add(changedPath);
+      if (debounceTimeout) clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(() => {
+        const changedArray = Array.from(batchedChanges);
+        res.write(`event: fileUpdate\ndata: ${JSON.stringify(changedArray)}\n\n`);
+        batchedChanges.clear();
+      }, 300);
+    }
   });
 
   watcher.on('error', (error) => {

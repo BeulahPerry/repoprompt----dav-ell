@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { updateXMLPreview } from './xmlPreview.js';
 import { sortTreeEntries, isTextFile } from './utils.js'; // Added isTextFile import
 import { generateFileExplorer } from './explorer.js'; // Import to trigger refresh
+import { setState, getState } from './stateDB.js'; // Import IndexedDB functions
 
 /**
  * Recursively renders the file tree into an HTML unordered list.
@@ -67,7 +68,13 @@ export function getSelectedPaths(tree) {
  * Applies saved file selections to the file tree in the DOM.
  * @param {string[]} savedPaths - Array of paths to select.
  */
-export function applySavedFileSelections(savedPaths) {
+export async function applySavedFileSelections(savedPaths) {
+  // If savedPaths is not provided, try loading from IndexedDB.
+  if (!savedPaths) {
+    const stored = await getState('repoPrompt_fileSelection');
+    savedPaths = stored ? JSON.parse(stored) : [];
+  }
+  
   const fileList = document.getElementById('file-list');
   const allItems = fileList.querySelectorAll('li[data-file], li[data-folder]');
   
@@ -253,8 +260,7 @@ export function handleFileSelection(event) {
       li.classList.remove('selected');
       delete li.dataset.userClicked; // Clear user-clicked flag
       toggleFolderChildren(li, false);
-      // Refresh file explorer to update tree
-      generateFileExplorer(); // Trigger refresh after deselecting
+      // Removed file explorer refresh on folder collapse to prevent unnecessary refresh.
     }
   } else if (isTextFile) {
     // For text files only, toggle selection
@@ -274,9 +280,11 @@ export function handleFileSelection(event) {
   state.selectedTree = buildSelectedTree(document.getElementById('file-list'));
   updateXMLPreview(true);
 
-  // Update file selection in localStorage so that selections persist between updates.
+  // Update file selection in IndexedDB so that selections persist between updates.
   const selectedPaths = getSelectedPaths(state.selectedTree);
-  localStorage.setItem('repoPrompt_fileSelection', JSON.stringify(selectedPaths));
+  import('./stateDB.js').then(dbModule => {
+    dbModule.setState('repoPrompt_fileSelection', JSON.stringify(selectedPaths));
+  });
 
   // Save state changes
   import('./state.js').then(module => {

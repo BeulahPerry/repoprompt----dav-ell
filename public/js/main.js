@@ -13,9 +13,35 @@ import { initWhitelistModal } from './whitelist.js';
 import { handleZipUpload, handleFolderUpload } from './uploader.js';
 import { refreshSelectedFiles } from './fileContent.js'; // Still imported for file updates via SSE
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Load saved state from localStorage.
-  loadStateFromLocalStorage();
+/**
+ * Helper function to compute minimal directories from an array of file paths.
+ * This reduces the size of the query string when subscribing for file updates.
+ * @param {Array<string>} paths - Array of full file paths.
+ * @returns {Array<string>} - Minimal set of directories.
+ */
+function getMinimalDirsFromFiles(paths) {
+  // Map each file to its directory
+  const dirs = paths.map(file => {
+    const parts = file.split('/');
+    parts.pop(); // Remove filename
+    return parts.join('/');
+  });
+  // Remove duplicates
+  const uniqueDirs = Array.from(new Set(dirs));
+  // Sort by length (shortest first)
+  uniqueDirs.sort((a, b) => a.length - b.length);
+  const minimal = [];
+  for (const dir of uniqueDirs) {
+    if (!minimal.some(existing => dir.startsWith(existing))) {
+      minimal.push(dir);
+    }
+  }
+  return minimal;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Load saved state from IndexedDB/localStorage.
+  await loadStateFromLocalStorage();
 
   // Initialize UI elements with saved state.
   const directoryInput = document.getElementById('directory-path');
@@ -124,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.uploadedFileTree = null;
     state.uploadedFiles = {};
     await generateFileExplorer();
-    saveStateToLocalStorage();
+    await saveStateToLocalStorage();
     // Re-subscribe for file updates after updating the directory
     subscribeToFileUpdates();
   });
@@ -185,8 +211,11 @@ function subscribeToFileUpdates() {
       console.log("No files selected for monitoring.");
       return;
     }
-    const queryParam = encodeURIComponent(JSON.stringify(selectedPaths));
-    const eventSourceUrl = `${state.baseEndpoint}/api/subscribe?files=${queryParam}`;
+    // Compute minimal directories from the selected file paths to avoid huge query strings.
+    const minimalDirs = getMinimalDirsFromFiles(selectedPaths);
+    const filesParam = encodeURIComponent(JSON.stringify(minimalDirs));
+    const directoryParam = encodeURIComponent(state.rootDirectory);
+    const eventSourceUrl = `${state.baseEndpoint}/api/subscribe?directory=${directoryParam}&files=${filesParam}`;
     const eventSource = new EventSource(eventSourceUrl);
 
     eventSource.onmessage = (event) => {

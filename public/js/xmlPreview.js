@@ -4,7 +4,7 @@
 
 import { state } from './state.js';
 import { formatTree, getSelectedPaths } from './fileTree.js';
-import { getFileNodes, fetchFileContent } from './fileContent.js';
+import { getFileNodes, fetchBatchFileContents } from './fileContent.js';
 import { getPromptsXML } from './prompts.js';
 import { getLanguage } from './utils.js';
 import { getUploadedFile } from './db.js'; // Import IndexedDB function
@@ -46,11 +46,11 @@ export async function updateXMLPreview(forceFullUpdate = false) {
         fileContentsStr += `<!-- No file contents available -->\n`;
       }
     } else {
-      // For non-uploaded files, fetch content from the server for the selected tree
+      // For non-uploaded files, fetch content from the server for the selected tree using batch request
       fileNodes = getFileNodes(state.selectedTree);
       if (fileNodes.length > 0) {
         console.log(`Processing contents for ${fileNodes.length} files`);
-        const fileContentsArray = await Promise.all(fileNodes.map(fileNode => fetchFileContent(fileNode)));
+        const fileContentsArray = await fetchBatchFileContents(fileNodes, false);
         fileContentsStr += fileContentsArray.join('');
       } else {
         console.log('No files selected for content fetching');

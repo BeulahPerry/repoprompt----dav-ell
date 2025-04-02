@@ -7,15 +7,25 @@ import { generateFileExplorer } from './explorer.js';
 
 /**
  * Attempts to fetch a URL via HTTPS and falls back to HTTP if needed.
+ * Accepts custom options to support various HTTP methods.
  * @param {string} url - The URL to fetch.
+ * @param {object} customOptions - Additional fetch options (e.g., method, headers, body).
  * @returns {Promise<Response>} - The fetch response.
  */
-export async function tryFetchWithFallback(url) {
+export async function tryFetchWithFallback(url, customOptions = {}) {
   let response;
-  // Include custom header to bypass ngrok warning page
-  const fetchOptions = {
+  const defaultOptions = {
     headers: {
       "ngrok-skip-browser-warning": "true"
+    }
+  };
+  // Merge default options with custom options, combining headers appropriately.
+  const fetchOptions = {
+    ...defaultOptions,
+    ...customOptions,
+    headers: {
+      ...defaultOptions.headers,
+      ...customOptions.headers
     }
   };
   try {

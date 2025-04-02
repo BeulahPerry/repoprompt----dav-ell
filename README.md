@@ -6,6 +6,21 @@ RepoPrompt now includes a free client-side version available at [repoprompt.netl
 
 ![UI PNG](assets/ui.png)
 
+To run:
+```bash
+git clone https://github.com/dav-ell/repoprompt
+cd repoprompt
+npm i
+npm start
+```
+
+Using docker:
+```bash
+git clone https://github.com/dav-ell/repoprompt
+cd repoprompt
+docker run --rm -it --net host  -v "$(pwd):/app"   -w /app   -v /home/user:/home/user node:latest   sh -c "npm install && npm start"
+```
+
 ## Table of Contents
 
 - [Environment Setup](#environment-setup)

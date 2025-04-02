@@ -31,10 +31,11 @@ export function renderFileTree(tree, parentPath = "", isRoot = false) {
       html += `<li data-file="${entry.path}" data-text-file="${isText}">${entry.name}</li>`;
     } else if (entry.type === "folder") {
       const folderPath = entry.path;
-      // Start all folders collapsed by default
-      state.collapsedFolders.add(folderPath);
-      html += `<li data-folder="${folderPath}" class="collapsed">`;
-      html += `<span class="folder-toggle">+</span>${entry.name}`;
+      // If no collapse state has been set yet, default to collapsed;
+      // otherwise, use the saved state.
+      const isCollapsed = state.collapsedFolders.size === 0 ? true : state.collapsedFolders.has(folderPath);
+      html += `<li data-folder="${folderPath}" class="${isCollapsed ? 'collapsed' : ''}">`;
+      html += `<span class="folder-toggle">${isCollapsed ? '+' : '-'}</span>${entry.name}`;
       html += renderFileTree(entry.children, folderPath);
       html += `</li>`;
     }
@@ -273,11 +274,15 @@ export function handleFileSelection(event) {
   state.selectedTree = buildSelectedTree(document.getElementById('file-list'));
   updateXMLPreview(true);
 
+  // Update file selection in localStorage so that selections persist between updates.
+  const selectedPaths = getSelectedPaths(state.selectedTree);
+  localStorage.setItem('repoPrompt_fileSelection', JSON.stringify(selectedPaths));
+
   // Save state changes
   import('./state.js').then(module => {
     module.saveStateToLocalStorage();
   });
 
-  // NEW: Dispatch an event to signal that file selection has changed
+  // Dispatch an event to signal that file selection has changed
   document.dispatchEvent(new Event('fileSelectionChanged'));
 }

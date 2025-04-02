@@ -50,7 +50,8 @@ export function renderPromptCheckboxes() {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.id = `prompt-${name}`;
-    checkbox.checked = false;
+    // Set checkbox checked based on whether the prompt is already selected in the state
+    checkbox.checked = state.selectedPrompts.has(name);
     label.appendChild(checkbox);
     label.append(` ${name.replace(/-/g, ' ')}`);
     container.appendChild(label);

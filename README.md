@@ -6,7 +6,18 @@ RepoPrompt now includes a free client-side version available at [repoprompt.netl
 
 ![UI PNG](assets/ui.png)
 
-To run:
+To run using free static-hosted [repoprompt.netlify.app/](https://repoprompt.netlify.app/):
+```bash
+git clone https://github.com/dav-ell/repoprompt
+cd repoprompt/repoprompt-server
+openssl genrsa -out server.key 2048
+openssl req -new -x509 -key server.key -out server.cert -days 365 -sha256 -subj "/CN=localhost"
+cargo run --release
+# Point the "Endpoint URL" in repoprompt.netlify.app to https://localhost:3000 now.
+```
+
+
+To run using the full server + client locally using the javascript (`server.js`) backend:
 ```bash
 git clone https://github.com/dav-ell/repoprompt
 cd repoprompt
@@ -14,7 +25,7 @@ npm i
 npm start
 ```
 
-Using docker:
+Using docker and the `server.js` backend:
 ```bash
 git clone https://github.com/dav-ell/repoprompt
 cd repoprompt

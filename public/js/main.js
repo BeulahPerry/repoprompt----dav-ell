@@ -256,8 +256,14 @@ function subscribeToFileUpdates() {
   // If an existing EventSource exists, close it before re-subscribing.
   if (state.eventSource) {
     state.eventSource.close();
+    state.eventSource = null;
   }
   
+  // Initialize retry count if not present
+  if (!state.hasOwnProperty('eventSourceRetries')) {
+    state.eventSourceRetries = 0;
+  }
+
   // Get selected file paths from the current selected tree.
   import('./fileTree.js').then(module => {
     const selectedPaths = module.getSelectedPaths(state.selectedTree);
@@ -270,10 +276,12 @@ function subscribeToFileUpdates() {
     const filesParam = encodeURIComponent(JSON.stringify(minimalDirs));
     const directoryParam = encodeURIComponent(state.rootDirectory);
     const eventSourceUrl = `${state.baseEndpoint}/api/subscribe?directory=${directoryParam}&files=${filesParam}`;
+    console.log(`Subscribing to file updates at: ${eventSourceUrl}`);
     const eventSource = new EventSource(eventSourceUrl);
 
     eventSource.onmessage = (event) => {
       // Generic messages (if any) can be handled here.
+      console.log(`SSE message received: ${event.data}`);
     };
 
     eventSource.addEventListener('fileUpdate', async (event) => {
@@ -281,15 +289,35 @@ function subscribeToFileUpdates() {
       // Refresh file content for updated files and update XML preview.
       await refreshSelectedFiles();
       await updateXMLPreview(true);
+      // Reset retries on successful update
+      state.eventSourceRetries = 0;
     });
 
     eventSource.addEventListener('error', (event) => {
-      console.error(`Error from file monitoring: ${event.data}`);
-      // Optionally, display an error to the user or handle reconnection logic.
+      const errorMessage = event.data ? event.data : 'Unknown error occurred';
+      console.error(`Error from file monitoring: ${errorMessage}`, {
+        readyState: eventSource.readyState,
+        eventDetails: event
+      });
       eventSource.close();
+      state.eventSource = null;
+
+      // Attempt to reconnect if max retries not reached
+      const maxRetries = 5;
+      if (state.eventSourceRetries < maxRetries) {
+        state.eventSourceRetries += 1;
+        console.log(`Reconnection attempt ${state.eventSourceRetries} of ${maxRetries} in 2 seconds...`);
+        setTimeout(() => {
+          subscribeToFileUpdates();
+        }, 2000);
+      } else {
+        console.error('Maximum reconnection attempts reached. Please check server status or directory permissions.');
+      }
     });
     
     // Save the EventSource so that we can close it later if needed.
     state.eventSource = eventSource;
+    // Reset retries on successful connection
+    state.eventSourceRetries = 0;
   });
 }

@@ -19,6 +19,7 @@ export async function handleZipUpload(file) {
     const { tree, files } = await buildTreeFromZip(zip);
     state.rootDirectory = "Uploaded: " + file.name;
     state.uploadedFileTree = tree;
+    state.collapsedFolders.clear(); // Clear collapsed folders to start with all directories collapsed
     // Store each text file in IndexedDB and skip non-text files
     await clearUploadedFiles();
     for (const [filePath, content] of Object.entries(files)) {
@@ -114,6 +115,7 @@ export async function handleFolderUpload(fileList) {
     const { tree, files: fileContents, baseFolder } = await buildTreeFromFolder(fileList);
     state.rootDirectory = "Uploaded: " + baseFolder;
     state.uploadedFileTree = tree;
+    state.collapsedFolders.clear(); // Clear collapsed folders to start with all directories collapsed
     // Clear any previous uploaded files from IndexedDB
     await clearUploadedFiles();
     // Store each text file in IndexedDB

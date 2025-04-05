@@ -29,13 +29,13 @@ export function renderFileTree(tree, parentPath = "", isRoot = false) {
   for (const entry of sortedEntries) {
     if (entry.type === "file") {
       const isText = isTextFile(entry.path);
-      html += `<li data-file="${entry.path}" data-text-file="${isText}">${entry.name}</li>`;
+      html += `<li data-file="${entry.path}" data-text-file="${isText}" title="${entry.path}">${entry.name}</li>`;
     } else if (entry.type === "folder") {
       const folderPath = entry.path;
       // If no collapse state has been set yet, default to collapsed;
       // otherwise, use the saved state.
       const isCollapsed = state.collapsedFolders.size === 0 ? true : state.collapsedFolders.has(folderPath);
-      html += `<li data-folder="${folderPath}" class="${isCollapsed ? 'collapsed' : ''}">`;
+      html += `<li data-folder="${folderPath}" class="${isCollapsed ? 'collapsed' : ''}" title="${folderPath}">`;
       html += `<span class="folder-toggle">${isCollapsed ? '+' : '-'}</span>${entry.name}`;
       html += renderFileTree(entry.children, folderPath);
       html += `</li>`;

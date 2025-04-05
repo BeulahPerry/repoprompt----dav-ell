@@ -192,6 +192,60 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('fileSelectionChanged', () => {
     subscribeToFileUpdates();
   });
+
+  // Resizable file explorer
+  const fileExplorer = document.querySelector('.file-explorer');
+  const header = document.querySelector('header');
+  const container = document.querySelector('.container');
+  const resizeHandle = document.querySelector('.resize-handle');
+
+  let isResizing = false;
+
+  // Load saved width from localStorage
+  let savedWidth = localStorage.getItem('fileExplorerWidth');
+  if (savedWidth) {
+    savedWidth = parseInt(savedWidth, 10);
+    const minWidth = 100;
+    const maxWidth = window.innerWidth - 100;
+    if (savedWidth < minWidth) savedWidth = minWidth;
+    if (savedWidth > maxWidth) savedWidth = maxWidth;
+    fileExplorer.style.width = `${savedWidth}px`;
+    header.style.left = `${savedWidth}px`;
+    header.style.width = `calc(100% - ${savedWidth}px)`;
+    container.style.marginLeft = `${savedWidth}px`;
+    container.style.width = `calc(100% - ${savedWidth}px)`;
+  }
+
+  resizeHandle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (isResizing) {
+      let newWidth = e.clientX;
+      const minWidth = 100;
+      const maxWidth = window.innerWidth - 100;
+      if (newWidth < minWidth) newWidth = minWidth;
+      if (newWidth > maxWidth) newWidth = maxWidth;
+      fileExplorer.style.width = `${newWidth}px`;
+      header.style.left = `${newWidth}px`;
+      header.style.width = `calc(100% - ${newWidth}px)`;
+      container.style.marginLeft = `${newWidth}px`;
+      container.style.width = `calc(100% - ${newWidth}px)`;
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isResizing) {
+      isResizing = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      const currentWidth = parseInt(fileExplorer.style.width, 10);
+      localStorage.setItem('fileExplorerWidth', currentWidth);
+    }
+  });
 });
 
 /**

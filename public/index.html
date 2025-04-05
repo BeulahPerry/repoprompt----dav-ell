@@ -18,11 +18,11 @@
         <label for="endpoint-url">Endpoint URL:</label>
         <input type="text" id="endpoint-url" placeholder="http://localhost:3000">
         <button id="connect-endpoint">Connect</button>
-        &nbsp;&nbsp;&nbsp;or<button id="upload-btn">Upload ZIP</button>
+           or<button id="upload-btn">Upload ZIP</button>
         <!-- Hidden file input for zip files -->
         <input type="file" id="zip-upload" accept=".zip" style="display:none;">
         <!-- New button and input for folder upload -->
-        &nbsp;&nbsp;&nbsp;or<button id="upload-folder-btn">Upload Folder</button>
+           or<button id="upload-folder-btn">Upload Folder</button>
         <input type="file" id="folder-upload" webkitdirectory directory multiple style="display:none;">
         <span id="connection-status"></span>
       </div>
@@ -53,6 +53,7 @@
     <div id="file-list-container">
       <ul id="file-list"></ul>
     </div>
+    <div class="resize-handle"></div>
   </aside>
   
   <!-- Main content area on the right -->

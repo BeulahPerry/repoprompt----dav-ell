@@ -149,11 +149,15 @@ button:hover {
 }
 
 .file-explorer li {
+  width: 100%;
   padding: 4px 12px;
   margin-bottom: 5px;
   border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .file-explorer li:hover {
@@ -333,4 +337,20 @@ li[data-folder] {
   font-size: 24px;
   cursor: pointer;
   color: #e0e0e0;
+}
+
+/* Resize handle for file explorer */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: ew-resize;
+  background-color: #3a3a3c;
+  z-index: 1;
+}
+
+.resize-handle:hover {
+  background-color: #4a4a4c;
 }

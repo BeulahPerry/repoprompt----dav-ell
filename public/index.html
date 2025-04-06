@@ -7,65 +7,62 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Header area remains at the top -->
   <header>
-    <div class="right-panel">
-      <div class="user-input">
-        <textarea id="user-instructions" placeholder="Type your instructions here..." rows="7"></textarea>
-      </div>
-      <!-- Endpoint Input with Connect button and Upload buttons -->
+    <div class="project-source">
+      <small>Step 1: Choose how to provide your project files</small>
       <div class="endpoint-input">
         <label for="endpoint-url">Endpoint URL:</label>
         <input type="text" id="endpoint-url" placeholder="http://localhost:3000">
         <button id="connect-endpoint">Connect</button>
-           or<button id="upload-btn">Upload ZIP</button>
-        <!-- Hidden file input for zip files -->
+        <span> or </span>
+        <button id="upload-btn">Upload ZIP</button>
         <input type="file" id="zip-upload" accept=".zip" style="display:none;">
-        <!-- New button and input for folder upload -->
-           or<button id="upload-folder-btn">Upload Folder</button>
+        <span> or </span>
+        <button id="upload-folder-btn">Upload Folder</button>
         <input type="file" id="folder-upload" webkitdirectory directory multiple style="display:none;">
         <span id="connection-status"></span>
       </div>
-      <!-- Directory Path Input with Update button -->
-      <div class="directory-input">
+      <div class="directory-input" id="directory-section" style="display:none;">
         <label for="directory-path">Directory Path:</label>
         <input type="text" id="directory-path" placeholder="Enter absolute path (e.g., /home/user/project)">
         <button id="update-directory">Update</button>
       </div>
-      <div class="prompt-selection">
-        <label style="padding-right: 10px;">Select Prompts:</label>
-        <div class="checkboxes" id="prompt-checkboxes">
-          <!-- Prompt checkboxes will be dynamically populated here -->
-        </div>
-        <button id="manage-prompts-btn">Manage Prompts</button>
-      </div>
     </div>
   </header>
   
-  <!-- File explorer panel spans the full left side -->
   <aside class="file-explorer">
-    <!-- Modified header to include the Whitelist button -->
     <h2 style="display: flex; align-items: center; justify-content: space-between;">
       <span>Files</span>
       <button id="manage-whitelist-btn" style="margin-left: 10px;">Whitelist</button>
     </h2>
-    <!-- File explorer tree will be generated dynamically -->
+    <small>Step 2: Select the files you want to include in your prompt</small>
     <div id="file-list-container">
       <ul id="file-list"></ul>
     </div>
     <div class="resize-handle"></div>
   </aside>
   
-  <!-- Main content area on the right -->
   <div class="container">
     <main class="content-area">
-      <h2>XML Prompt Preview</h2>
-      <pre id="xml-output"><xml>
-  <!-- XML formatting will be generated here -->
-</xml></pre>
-      <button id="copy-btn">Copy XML</button>
-      <span id="copy-feedback">copied!</span>
-      <div id="failed-files"></div> <!-- Added container for failed files -->
+      <section class="prompt-selection">
+        <h2>Select Prompts</h2>
+        <small>Step 3: Select or manage custom prompts</small>
+        <div id="prompt-checkboxes"></div>
+        <button id="manage-prompts-btn">Manage Prompts</button>
+      </section>
+      <section class="user-input">
+        <h2>User Instructions</h2>
+        <small>Step 4: Enter your instructions for the model</small>
+        <textarea id="user-instructions" placeholder="Type your instructions here..." rows="7"></textarea>
+      </section>
+      <section class="xml-preview">
+        <h2>XML Prompt Preview</h2>
+        <small>Step 5: Copy the generated XML</small>
+        <pre id="xml-output"><xml><!-- XML will be generated here --></xml></pre>
+        <button id="copy-btn">Copy XML</button>
+        <span id="copy-feedback">copied!</span>
+        <div id="failed-files"></div>
+      </section>
     </main>
   </div>
 
@@ -84,7 +81,6 @@
       </div>
       <button id="save-prompt">Save Prompt</button>
       <button id="cancel-edit" style="display:none;">Cancel Edit</button>
-      <!-- New container for prompt management list -->
       <h3 style="padding-top: 20px;">Existing Prompts</h3>
       <div id="prompt-management-list"></div>
     </div>
@@ -95,7 +91,6 @@
     <div class="modal-content">
       <span class="close">×</span>
       <h2>Manage Whitelist</h2>
-      <!-- Instructional text added for clarity -->
       <p style="font-size: 0.9rem; margin-bottom: 10px;">
         Tip: You can whitelist any file patterns using wildcards (*). For example, "dockerfile*" will match all Dockerfile variants.
       </p>
@@ -109,7 +104,6 @@
     </div>
   </div>
 
-  <!-- Load main.js as a module -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>

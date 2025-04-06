@@ -39,7 +39,7 @@ export function savePromptsToStorage() {
 }
 
 /**
- * Renders prompt checkboxes dynamically.
+ * Renders prompt checkboxes dynamically with custom styling.
  * Each checkbox reflects whether the prompt is selected (tracked in state.selectedPrompts).
  */
 export function renderPromptCheckboxes() {
@@ -47,26 +47,31 @@ export function renderPromptCheckboxes() {
   container.innerHTML = '';
   Object.entries(availablePrompts).forEach(([name, text]) => {
     const label = document.createElement('label');
+    label.classList.add('custom-checkbox');
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.id = `prompt-${name}`;
-    // Set checkbox checked based on whether the prompt is already selected in the state
     checkbox.checked = state.selectedPrompts.has(name);
+    const checkmark = document.createElement('span');
+    checkmark.classList.add('checkmark');
+    const textSpan = document.createElement('span');
+    textSpan.classList.add('prompt-text');
+    textSpan.textContent = ` ${name.replace(/-/g, ' ')}`;
     label.appendChild(checkbox);
-    label.append(` ${name.replace(/-/g, ' ')}`);
+    label.appendChild(checkmark);
+    label.appendChild(textSpan);
     container.appendChild(label);
 
     checkbox.addEventListener('change', () => {
-      // Dynamically update the selected prompts in the state
+      if (checkbox.checked) {
+        state.selectedPrompts.add(name);
+      } else {
+        state.selectedPrompts.delete(name);
+      }
+      import('./xmlPreview.js').then(xmlModule => {
+        xmlModule.updateXMLPreview();
+      });
       import('./state.js').then(module => {
-        if (checkbox.checked) {
-          module.state.selectedPrompts.add(name);
-        } else {
-          module.state.selectedPrompts.delete(name);
-        }
-        import('./xmlPreview.js').then(xmlModule => {
-          xmlModule.updateXMLPreview();
-        });
         module.saveStateToLocalStorage();
       });
     });
@@ -119,7 +124,6 @@ export function editPrompt(oldName, newName, newText) {
     alert('A prompt with the new name already exists. Please choose a different name.');
     return;
   }
-  // Remove old prompt if name has changed
   if (oldName !== newName) {
     delete availablePrompts[oldName];
   }
@@ -163,13 +167,10 @@ export function renderPromptsManagementList() {
     const editButton = document.createElement('button');
     editButton.textContent = 'Edit';
     editButton.addEventListener('click', () => {
-      // Populate the modal inputs with the selected prompt's data
       document.getElementById('new-prompt-name').value = name;
       document.getElementById('new-prompt-text').value = text;
-      // Set data attribute to indicate edit mode with the original name
       document.getElementById('save-prompt').setAttribute('data-editing', name);
       document.getElementById('save-prompt').textContent = 'Update Prompt';
-      // Show the cancel edit button
       document.getElementById('cancel-edit').style.display = 'inline-block';
     });
     

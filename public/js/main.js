@@ -67,6 +67,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize whitelist modal functionality.
   initWhitelistModal();
 
+  // Set initial visibility of directory-section
+  if (state.baseEndpoint && !state.uploadedFileTree) {
+    document.getElementById('directory-section').style.display = 'block';
+  } else {
+    document.getElementById('directory-section').style.display = 'none';
+  }
+
   // If there is an uploaded file tree, use it to generate the file explorer;
   // otherwise, load from the server.
   if (state.uploadedFileTree) {
@@ -148,7 +155,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log(`Updating directory to: ${state.rootDirectory}`);
     // Clear any previously uploaded file data if a directory is manually specified.
     state.uploadedFileTree = null;
-    state.uploadedFiles = {};
     await generateFileExplorer();
     await saveStateToLocalStorage();
     // Re-subscribe for file updates after updating the directory
@@ -156,7 +162,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Check connection when the user clicks the connect button.
-  document.getElementById('connect-endpoint').addEventListener('click', checkConnection);
+  document.getElementById('connect-endpoint').addEventListener('click', async () => {
+    await checkConnection();
+    if (state.baseEndpoint && !state.uploadedFileTree) {
+      document.getElementById('directory-section').style.display = 'block';
+    } else {
+      document.getElementById('directory-section').style.display = 'none';
+    }
+  });
 
   // Setup the upload button and file input event listeners.
   const uploadBtn = document.getElementById('upload-btn');

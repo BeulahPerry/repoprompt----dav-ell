@@ -33,17 +33,16 @@ export async function generateFileExplorer() {
       fileListElement.innerHTML = renderFileTree(data.tree, "", true);
       console.log('File explorer updated successfully');
       
-      const savedSelections = localStorage.getItem('repoPrompt_fileSelection');
-      if (savedSelections) {
-        applySavedFileSelections(JSON.parse(savedSelections));
-      } else {
-        state.selectedTree = buildSelectedTree(fileListElement);
-      }
+      // Load and apply saved selections from IndexedDB
+      await applySavedFileSelections();
       
       await updateXMLPreview(true); // Force full update on initial load
       
       const selectedPaths = getSelectedPaths(state.selectedTree);
-      localStorage.setItem('repoPrompt_fileSelection', JSON.stringify(selectedPaths));
+      // Save to IndexedDB
+      import('./stateDB.js').then(dbModule => {
+        dbModule.setState('repoPrompt_fileSelection', JSON.stringify(selectedPaths));
+      });
       saveStateToLocalStorage();
     } else {
       let errorMsg = data.error;

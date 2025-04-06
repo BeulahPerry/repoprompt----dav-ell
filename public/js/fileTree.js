@@ -220,6 +220,7 @@ export function toggleFolderCollapse(li) {
 
 /**
  * Handles file and folder selection and collapse/expand using event delegation.
+ * Updates the selectedTree and XML preview without refreshing the entire file explorer.
  * @param {Event} event - The click event.
  */
 export function handleFileSelection(event) {
@@ -227,7 +228,7 @@ export function handleFileSelection(event) {
   const li = target.closest('li');
   if (!li) return;
 
-  // Clear failed files list since a new selection is being made
+  // Clear failed files list since"a new selection is being made
   state.failedFiles.clear();
 
   // If the user clicked on the folder toggle element, only toggle collapse.
@@ -260,16 +261,15 @@ export function handleFileSelection(event) {
       li.classList.remove('selected');
       delete li.dataset.userClicked; // Clear user-clicked flag
       toggleFolderChildren(li, false);
-      // Removed file explorer refresh on folder collapse to prevent unnecessary refresh.
     }
   } else if (isTextFile) {
-    // For text files only, toggle selection
+    // For text files only, toggle selection without refreshing the explorer
     li.classList.toggle('selected');
     li.dataset.userClicked = true;
-    // If the file was deselected (no longer selected), refresh the file explorer
-    if (!li.classList.contains('selected')) {
-      generateFileExplorer(); // Trigger refresh after deselecting
-    }
+    // Note: We explicitly avoid calling generateFileExplorer() here to prevent
+    // unnecessary tree refreshes on deselection or selection, which is expensive
+    // for large directories. The explorer should only refresh when the directory
+    // path or uploaded files change.
   } else {
     // Non-text files are not selectable; log and return
     console.log(`Non-text file clicked, selection prevented: ${li.textContent.trim()}`);

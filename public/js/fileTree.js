@@ -3,12 +3,12 @@
 
 import { state } from './state.js';
 import { updateXMLPreview } from './xmlPreview.js';
-import { sortTreeEntries, isTextFile } from './utils.js'; // Added isTextFile import
-import { generateFileExplorer } from './explorer.js'; // Import to trigger refresh
-import { setState, getState } from './stateDB.js'; // Import IndexedDB functions
+import { sortTreeEntries, isTextFile } from './utils.js';
+import { generateFileExplorer } from './explorer.js';
+import { setState, getState } from './stateDB.js';
 
 /**
- * Recursively renders the file tree into an HTML unordered list.
+ * Recursively renders the file tree into an HTML unordered list with checkboxes.
  * @param {Object} tree - The file tree object.
  * @param {string} parentPath - The parent path.
  * @param {boolean} isRoot - Flag indicating whether to wrap in <ul> or not.
@@ -17,7 +17,6 @@ import { setState, getState } from './stateDB.js'; // Import IndexedDB functions
 export function renderFileTree(tree, parentPath = "", isRoot = false) {
   let html = isRoot ? "" : '<ul>';
   
-  // Convert tree object to array of entries and sort them
   const entries = Object.entries(tree).map(([name, node]) => ({
     name,
     type: node.type,
@@ -29,14 +28,21 @@ export function renderFileTree(tree, parentPath = "", isRoot = false) {
   for (const entry of sortedEntries) {
     if (entry.type === "file") {
       const isText = isTextFile(entry.path);
-      html += `<li data-file="${entry.path}" data-text-file="${isText}" title="${entry.path}">${entry.name}</li>`;
+      const isSelected = !!state.selectedTree[entry.name]; // Simplified check
+      html += `<li data-file="${entry.path}" data-text-file="${isText}" title="${entry.path}">`;
+      html += `<div class="file-header">`;
+      html += `<input type="checkbox" class="file-checkbox" ${isText ? '' : 'disabled'} ${isSelected ? 'checked' : ''}>`;
+      html += `<span class="file-name">${entry.name}</span>`;
+      html += `</div></li>`;
     } else if (entry.type === "folder") {
       const folderPath = entry.path;
-      // If no collapse state has been set yet, default to collapsed;
-      // otherwise, use the saved state.
-      const isCollapsed = state.collapsedFolders.size === 0 ? true : state.collapsedFolders.has(folderPath);
+      const isCollapsed = state.collapsedFolders.has(folderPath) || state.collapsedFolders.size === 0;
       html += `<li data-folder="${folderPath}" class="${isCollapsed ? 'collapsed' : ''}" title="${folderPath}">`;
-      html += `<span class="folder-toggle">${isCollapsed ? '+' : '-'}</span>${entry.name}`;
+      html += `<div class="folder-header">`;
+      html += `<input type="checkbox" class="folder-checkbox">`;
+      html += `<span class="folder-toggle"></span>`; // Removed +/-
+      html += `<span class="folder-name">${entry.name}</span>`;
+      html += `</div>`;
       html += renderFileTree(entry.children, folderPath);
       html += `</li>`;
     }
@@ -69,29 +75,24 @@ export function getSelectedPaths(tree) {
  * @param {string[]} savedPaths - Array of paths to select.
  */
 export async function applySavedFileSelections(savedPaths) {
-  // If savedPaths is not provided, try loading from IndexedDB.
   if (!savedPaths) {
     const stored = await getState('repoPrompt_fileSelection');
     savedPaths = stored ? JSON.parse(stored) : [];
   }
   
   const fileList = document.getElementById('file-list');
-  const allItems = fileList.querySelectorAll('li[data-file], li[data-folder]');
+  const allItems = fileList.querySelectorAll('li[data-file]');
   
   allItems.forEach(item => {
-    const path = item.getAttribute('data-file') || item.getAttribute('data-folder');
-    if (savedPaths.includes(path)) {
-      // Only select files if they are text files
-      if (item.hasAttribute('data-file') && item.getAttribute('data-text-file') === 'true') {
-        item.classList.add('selected');
-        item.dataset.userClicked = true;
-      } else if (item.hasAttribute('data-folder')) {
-        item.classList.add('selected');
-        item.dataset.userClicked = true;
-      }
+    const path = item.getAttribute('data-file');
+    if (savedPaths.includes(path) && item.getAttribute('data-text-file') === 'true') {
+      item.classList.add('selected');
+      const checkbox = item.querySelector('.file-checkbox');
+      if (checkbox) checkbox.checked = true;
     }
   });
-  
+
+  updateAllFolderCheckboxes();
   state.selectedTree = buildSelectedTree(fileList);
 }
 
@@ -106,40 +107,20 @@ export function buildSelectedTree(ulElement, parentPath = state.rootDirectory) {
   const liElements = ulElement.querySelectorAll(':scope > li');
 
   liElements.forEach(li => {
-    const isSelected = li.classList.contains("selected");
-
-    if (li.hasAttribute("data-file") && isSelected && li.getAttribute('data-text-file') === 'true') {
-      const filePath = li.getAttribute("data-file");
-      const fileName = filePath.split("/").pop();
-      tree[fileName] = { type: "file", path: filePath };
-    }
-
-    if (li.hasAttribute("data-folder")) {
-      let folderName;
-      if (li.firstChild.nodeType === Node.TEXT_NODE) {
-        folderName = li.firstChild.textContent.trim();
-      } else {
-        folderName = li.childNodes[1].textContent.trim();
+    if (li.hasAttribute("data-file")) {
+      const checkbox = li.querySelector('.file-checkbox');
+      if (checkbox && checkbox.checked && li.getAttribute('data-text-file') === 'true') {
+        const filePath = li.getAttribute("data-file");
+        const fileName = filePath.split("/").pop();
+        tree[fileName] = { type: "file", path: filePath };
       }
+    } else if (li.hasAttribute("data-folder")) {
       const folderPath = li.getAttribute("data-folder");
+      const folderName = li.querySelector('.folder-name').textContent.trim();
       const nestedUl = li.querySelector(":scope > ul");
       const children = nestedUl ? buildSelectedTree(nestedUl, folderPath) : {};
-
-      const allChildren = nestedUl ? nestedUl.querySelectorAll('li') : [];
-      const selectedChildren = nestedUl ? nestedUl.querySelectorAll('li.selected') : [];
-      const allSelected = allChildren.length > 0 && allChildren.length === selectedChildren.length;
-
-      if (isSelected || Object.keys(children).length > 0) {
-        tree[folderName] = {
-          type: "folder",
-          path: folderPath,
-          children: children
-        };
-        if (allSelected && !isSelected) {
-          li.classList.add("selected");
-        } else if (!allSelected && isSelected && !li.dataset.userClicked) {
-          li.classList.remove("selected");
-        }
+      if (Object.keys(children).length > 0) {
+        tree[folderName] = { type: "folder", path: folderPath, children };
       }
     }
   });
@@ -174,24 +155,98 @@ export function formatTree(tree, prefix = "") {
  * @param {HTMLElement} li - The folder li element.
  * @param {boolean} select - Whether to select or deselect.
  */
-export function toggleFolderChildren(li, select) {
-  const children = li.querySelectorAll(':scope > ul > li');
-  children.forEach(child => {
-    if (child.hasAttribute('data-file') && child.getAttribute('data-text-file') === 'true') {
-      if (select) {
-        child.classList.add('selected');
-      } else {
-        child.classList.remove('selected');
-      }
-    } else if (child.hasAttribute('data-folder')) {
-      if (select) {
-        child.classList.add('selected');
-      } else {
-        child.classList.remove('selected');
-      }
-      toggleFolderChildren(child, select);
+function toggleFolderSelection(li, select) {
+  const fileLis = li.querySelectorAll(':scope ul li[data-file]');
+  fileLis.forEach(fileLi => {
+    const checkbox = fileLi.querySelector('.file-checkbox');
+    if (checkbox && !checkbox.disabled) {
+      checkbox.checked = select;
+      fileLi.classList.toggle('selected', select);
     }
   });
+  const subfolderLis = li.querySelectorAll(':scope ul li[data-folder]');
+  subfolderLis.forEach(subLi => {
+    const checkbox = subLi.querySelector('.folder-checkbox');
+    checkbox.checked = select;
+    checkbox.indeterminate = false;
+  });
+  updateParentFolders(li);
+}
+
+/**
+ * Toggles selection of a single file.
+ * @param {HTMLElement} li - The file li element.
+ * @param {boolean} select - Whether to select or deselect.
+ */
+function toggleFileSelection(li, select) {
+  const checkbox = li.querySelector('.file-checkbox');
+  if (checkbox && !checkbox.disabled) {
+    checkbox.checked = select;
+    li.classList.toggle('selected', select);
+    updateParentFolders(li);
+  }
+}
+
+/**
+ * Updates the checkbox states of all parent folders.
+ * @param {HTMLElement} li - The starting li element.
+ */
+function updateParentFolders(li) {
+  let currentLi = li.parentElement.closest('li[data-folder]');
+  while (currentLi) {
+    updateFolderCheckbox(currentLi);
+    currentLi = currentLi.parentElement.closest('li[data-folder]');
+  }
+}
+
+/**
+ * Updates a folder's checkbox state based on its children.
+ * @param {HTMLElement} li - The folder li element.
+ */
+function updateFolderCheckbox(li) {
+  const checkbox = li.querySelector('.folder-checkbox');
+  const fileLis = li.querySelectorAll(':scope > ul > li[data-file]');
+  const subfolderLis = li.querySelectorAll(':scope > ul > li[data-folder]');
+
+  let allFilesSelected = true;
+  let someFilesSelected = false;
+  fileLis.forEach(fileLi => {
+    const fileCheckbox = fileLi.querySelector('.file-checkbox');
+    if (fileCheckbox && !fileCheckbox.disabled) {
+      if (fileCheckbox.checked) someFilesSelected = true;
+      else allFilesSelected = false;
+    }
+  });
+
+  let allSubfoldersChecked = true;
+  let someSubfoldersChecked = false;
+  subfolderLis.forEach(subLi => {
+    const subCheckbox = subLi.querySelector('.folder-checkbox');
+    if (subCheckbox.checked) someSubfoldersChecked = true;
+    else if (subCheckbox.indeterminate) {
+      someSubfoldersChecked = true;
+      allSubfoldersChecked = false;
+    } else allSubfoldersChecked = false;
+  });
+
+  if (allFilesSelected && allSubfoldersChecked && (fileLis.length > 0 || subfolderLis.length > 0)) {
+    checkbox.checked = true;
+    checkbox.indeterminate = false;
+  } else if (someFilesSelected || someSubfoldersChecked) {
+    checkbox.checked = false;
+    checkbox.indeterminate = true;
+  } else {
+    checkbox.checked = false;
+    checkbox.indeterminate = false;
+  }
+}
+
+/**
+ * Updates all folder checkboxes based on their children's states.
+ */
+function updateAllFolderCheckboxes() {
+  const folderLis = document.getElementById('file-list').querySelectorAll('li[data-folder]');
+  folderLis.forEach(updateFolderCheckbox);
 }
 
 /**
@@ -201,18 +256,14 @@ export function toggleFolderChildren(li, select) {
 export function toggleFolderCollapse(li) {
   const folderPath = li.getAttribute('data-folder');
   const isCollapsed = li.classList.contains('collapsed');
-  const toggleSpan = li.querySelector('.folder-toggle');
 
   if (isCollapsed) {
     li.classList.remove('collapsed');
-    toggleSpan.textContent = '-';
     state.collapsedFolders.delete(folderPath);
   } else {
     li.classList.add('collapsed');
-    toggleSpan.textContent = '+';
     state.collapsedFolders.add(folderPath);
   }
-  // Save state changes
   import('./state.js').then(module => {
     module.saveStateToLocalStorage();
   });
@@ -228,69 +279,25 @@ export function handleFileSelection(event) {
   const li = target.closest('li');
   if (!li) return;
 
-  // Clear failed files list since"a new selection is being made
   state.failedFiles.clear();
 
-  // If the user clicked on the folder toggle element, only toggle collapse.
-  if (target.classList.contains('folder-toggle')) {
+  if (target.classList.contains('folder-checkbox')) {
+    toggleFolderSelection(li, target.checked);
+  } else if (target.classList.contains('file-checkbox')) {
+    toggleFileSelection(li, target.checked);
+  } else if (target.classList.contains('folder-toggle') || target.classList.contains('folder-name')) {
     toggleFolderCollapse(li);
-    return;
+  } else if (target.classList.contains('file-name') && li.getAttribute('data-text-file') === 'true') {
+    const checkbox = li.querySelector('.file-checkbox');
+    toggleFileSelection(li, !checkbox.checked);
   }
 
-  // Handle selection and expansion for folders, or just selection for files.
-  const isFolder = li.hasAttribute('data-folder');
-  const isTextFileAttr = li.getAttribute('data-text-file');
-  const isTextFile = isTextFileAttr === 'true';
-  const wasSelected = li.classList.contains('selected');
-
-  if (isFolder) {
-    const isCollapsed = li.classList.contains('collapsed');
-    if (isCollapsed) {
-      // Expand and select all text file children
-      li.classList.remove('collapsed');
-      li.querySelector('.folder-toggle').textContent = '-';
-      state.collapsedFolders.delete(li.getAttribute('data-folder'));
-      li.classList.add('selected');
-      li.dataset.userClicked = true;
-      toggleFolderChildren(li, true);
-    } else {
-      // Collapse and deselect all children
-      li.classList.add('collapsed');
-      li.querySelector('.folder-toggle').textContent = '+';
-      state.collapsedFolders.add(li.getAttribute('data-folder'));
-      li.classList.remove('selected');
-      delete li.dataset.userClicked; // Clear user-clicked flag
-      toggleFolderChildren(li, false);
-    }
-  } else if (isTextFile) {
-    // For text files only, toggle selection without refreshing the explorer
-    li.classList.toggle('selected');
-    li.dataset.userClicked = true;
-    // Note: We explicitly avoid calling generateFileExplorer() here to prevent
-    // unnecessary tree refreshes on deselection or selection, which is expensive
-    // for large directories. The explorer should only refresh when the directory
-    // path or uploaded files change.
-  } else {
-    // Non-text files are not selectable; log and return
-    console.log(`Non-text file clicked, selection prevented: ${li.textContent.trim()}`);
-    return;
-  }
-
-  console.log(`Toggled selection for: ${li.textContent.trim()}`);
   state.selectedTree = buildSelectedTree(document.getElementById('file-list'));
   updateXMLPreview(true);
 
-  // Update file selection in IndexedDB so that selections persist between updates.
   const selectedPaths = getSelectedPaths(state.selectedTree);
-  import('./stateDB.js').then(dbModule => {
-    dbModule.setState('repoPrompt_fileSelection', JSON.stringify(selectedPaths));
-  });
+  setState('repoPrompt_fileSelection', JSON.stringify(selectedPaths));
 
-  // Save state changes
-  import('./state.js').then(module => {
-    module.saveStateToLocalStorage();
-  });
-
-  // Dispatch an event to signal that file selection has changed
+  import('./state.js').then(module => module.saveStateToLocalStorage());
   document.dispatchEvent(new Event('fileSelectionChanged'));
 }

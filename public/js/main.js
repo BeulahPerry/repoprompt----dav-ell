@@ -263,47 +263,42 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 /**
  * Subscribes to the server’s file change notifications using Server-Sent Events (SSE).
- * If the number of selected files exceeds a predefined limit, an error is shown.
+ * Sends specific file paths instead of directories for efficient monitoring.
  */
 function subscribeToFileUpdates() {
-  // If an existing EventSource exists, close it before re-subscribing.
+  // Close existing EventSource if it exists
   if (state.eventSource) {
     state.eventSource.close();
     state.eventSource = null;
   }
-  
+
   // Initialize retry count if not present
   if (!state.hasOwnProperty('eventSourceRetries')) {
     state.eventSourceRetries = 0;
   }
 
-  // Get selected file paths from the current selected tree.
   import('./fileTree.js').then(module => {
     const selectedPaths = module.getSelectedPaths(state.selectedTree);
     if (selectedPaths.length === 0) {
       console.log("No files selected for monitoring.");
       return;
     }
-    // Compute minimal directories from the selected file paths to avoid huge query strings.
-    const minimalDirs = getMinimalDirsFromFiles(selectedPaths);
-    const filesParam = encodeURIComponent(JSON.stringify(minimalDirs));
+
+    const filesParam = encodeURIComponent(JSON.stringify(selectedPaths));
     const directoryParam = encodeURIComponent(state.rootDirectory);
     const eventSourceUrl = `${state.baseEndpoint}/api/subscribe?directory=${directoryParam}&files=${filesParam}`;
     console.log(`Subscribing to file updates at: ${eventSourceUrl}`);
     const eventSource = new EventSource(eventSourceUrl);
 
     eventSource.onmessage = (event) => {
-      // Generic messages (if any) can be handled here.
       console.log(`SSE message received: ${event.data}`);
     };
 
     eventSource.addEventListener('fileUpdate', async (event) => {
       console.log(`File update detected: ${event.data}`);
-      // Refresh file content for updated files and update XML preview.
       await refreshSelectedFiles();
       await updateXMLPreview(true);
-      // Reset retries on successful update
-      state.eventSourceRetries = 0;
+      state.eventSourceRetries = 0; // Reset retries on success
     });
 
     eventSource.addEventListener('error', (event) => {
@@ -315,7 +310,6 @@ function subscribeToFileUpdates() {
       eventSource.close();
       state.eventSource = null;
 
-      // Attempt to reconnect if max retries not reached
       const maxRetries = 5;
       if (state.eventSourceRetries < maxRetries) {
         state.eventSourceRetries += 1;
@@ -324,13 +318,11 @@ function subscribeToFileUpdates() {
           subscribeToFileUpdates();
         }, 2000);
       } else {
-        console.error('Maximum reconnection attempts reached. Please check server status or directory permissions.');
+        console.error('Maximum reconnection attempts reached. Please check server status or file permissions.');
       }
     });
-    
-    // Save the EventSource so that we can close it later if needed.
+
     state.eventSource = eventSource;
-    // Reset retries on successful connection
-    state.eventSourceRetries = 0;
+    state.eventSourceRetries = 0; // Reset retries on new connection
   });
 }

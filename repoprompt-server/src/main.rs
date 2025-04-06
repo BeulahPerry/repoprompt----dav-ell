@@ -1,3 +1,4 @@
+// src/main.rs
 use actix_cors::Cors;
 use actix_web::{get, post, web, App, HttpResponse, HttpRequest, HttpServer};
 use actix_web::http::header;
@@ -5,7 +6,7 @@ use actix_web::web::Bytes;
 use actix_files::Files;
 use futures::channel::mpsc;
 use futures::SinkExt;
-use futures::stream::{self, StreamExt};
+use futures::stream::{self, StreamExt, select};
 use ignore::gitignore::Gitignore;
 use notify::{RecommendedWatcher, Watcher, Config as NotifyConfig};
 use serde::{Deserialize, Serialize};
@@ -22,8 +23,10 @@ use rustls_pemfile::{certs, pkcs8_private_keys};
 use log::{error, debug};
 use tokio::fs as tokio_fs;
 use rustls::ServerConfig;
+use std::time::Duration;
+use tokio::time::interval;
+use tokio_stream::wrappers::IntervalStream;
 
-// Existing structs and functions remain unchanged
 #[derive(Serialize)]
 struct TreeNode {
     #[serde(rename = "type")]
@@ -55,7 +58,6 @@ struct SubscribeQuery {
     files: String,
 }
 
-// Existing functions (validate_path, natural_compare, build_tree, etc.) remain unchanged
 fn validate_path(requested_path: &str) -> Result<PathBuf, String> {
     let resolved_path = PathBuf::from(requested_path)
         .canonicalize()
@@ -224,17 +226,17 @@ async fn get_config() -> HttpResponse {
 async fn subscribe(query: web::Query<SubscribeQuery>) -> HttpResponse {
     let directory = query.directory.clone().unwrap_or_else(|| env::current_dir().unwrap().to_string_lossy().to_string());
     let files_json = &query.files;
-    let dirs: Vec<String> = match serde_json::from_str(files_json) {
-        Ok(d) => d,
+    let files: Vec<String> = match serde_json::from_str(files_json) {
+        Ok(f) => f,
         Err(e) => return HttpResponse::BadRequest().body(format!("Failed to parse files parameter: {}", e)),
     };
 
-    let validated_dirs: Vec<PathBuf> = dirs.iter().filter_map(|d| validate_path(d).ok()).collect();
-    if validated_dirs.is_empty() {
-        return HttpResponse::BadRequest().body("No valid directories to watch");
+    let validated_files: Vec<PathBuf> = files.iter().filter_map(|f| validate_path(f).ok()).collect();
+    if validated_files.is_empty() {
+        return HttpResponse::BadRequest().body("No valid files to watch");
     }
 
-    let (tx, rx) = mpsc::unbounded();
+    let (mut tx, rx) = mpsc::unbounded();
     let watcher_tx = Arc::new(Mutex::new(tx.clone()));
     let mut watcher: RecommendedWatcher = Watcher::new(
         move |res: Result<notify::Event, notify::Error>| {
@@ -251,7 +253,7 @@ async fn subscribe(query: web::Query<SubscribeQuery>) -> HttpResponse {
                     Err(e) => {
                         error!("Watcher error: {}", e);
                         let _ = tx.lock().await.send(Bytes::from(
-                            format!("event: error\ndata: {}\n\n", e.to_string())
+                            format!("event: error\ndata: Watcher failed: {}\n\n", e.to_string())
                         )).await;
                     }
                 }
@@ -260,13 +262,22 @@ async fn subscribe(query: web::Query<SubscribeQuery>) -> HttpResponse {
         NotifyConfig::default(),
     ).unwrap();
 
-    for dir in validated_dirs {
-        if let Err(e) = watcher.watch(&dir, notify::RecursiveMode::Recursive) {
-            error!("Failed to watch directory {}: {}", dir.display(), e);
+    // Watch each file individually, non-recursively
+    for file in validated_files {
+        if let Err(e) = watcher.watch(&file, notify::RecursiveMode::NonRecursive) {
+            error!("Failed to watch file {}: {}", file.display(), e);
+            let _ = tx.send(Bytes::from(
+                format!("event: error\ndata: Failed to watch file {}: {}\n\n", file.display(), e)
+            )).await;
         }
     }
 
-    let sse_stream = rx.map(|bytes| Ok::<_, std::convert::Infallible>(bytes));
+    // Add keep-alive stream to send comments every 15 seconds
+    let keep_alive_stream = IntervalStream::new(interval(Duration::from_secs(15)))
+        .map(|_| Bytes::from(": keep-alive\n\n"));
+    let sse_stream = select(rx, keep_alive_stream)
+        .map(Ok::<_, std::convert::Infallible>); // Explicitly specify Result type with Infallible error
+
     HttpResponse::Ok()
         .content_type("text/event-stream")
         .streaming(sse_stream)

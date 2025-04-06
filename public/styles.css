@@ -149,7 +149,7 @@ button:hover {
 }
 
 /* Remove blue background for selected folders */
-.file-explorer li[data-folder].selected {
+.file-explorer li[data-folder] {
   background-color: transparent;
 }
 
@@ -282,7 +282,40 @@ button:hover {
 .collapsed > ul {
   display: none;
 }
-li[data-folder] {
+
+/* Styles for folder and file headers */
+.folder-header, .file-header {
+  display: flex;
+  align-items: center;
+}
+
+.folder-checkbox, .file-checkbox {
+  margin-right: 5px;
+}
+
+.folder-toggle {
+  margin-right: 5px;
+  cursor: pointer;
+  width: 12px; /* Maintain spacing even without text */
+}
+
+.folder-toggle::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 5px solid #e0e0e0;
+  transition: transform 0.2s;
+}
+
+.collapsed .folder-toggle::before {
+  transform: rotate(-90deg); /* Down arrow when collapsed */
+}
+
+.folder-name, .file-name {
+  flex: 1;
   cursor: pointer;
 }
 

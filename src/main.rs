@@ -5,7 +5,6 @@ use actix_web::http::header;
 use actix_web::web::Bytes;
 use rust_embed::RustEmbed; // Import rust-embed
 use mime_guess; // For determining MIME types
-use actix_files::Files;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use futures::stream::{self, StreamExt, select};

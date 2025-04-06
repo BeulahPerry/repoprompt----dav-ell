@@ -3,6 +3,8 @@ use actix_cors::Cors;
 use actix_web::{get, post, web, App, HttpResponse, HttpRequest, HttpServer};
 use actix_web::http::header;
 use actix_web::web::Bytes;
+use rust_embed::RustEmbed; // Import rust-embed
+use mime_guess; // For determining MIME types
 use actix_files::Files;
 use futures::channel::mpsc;
 use futures::SinkExt;
@@ -26,6 +28,10 @@ use rustls::ServerConfig;
 use std::time::Duration;
 use tokio::time::interval;
 use tokio_stream::wrappers::IntervalStream;
+
+#[derive(RustEmbed)]
+#[folder = "public/"]
+struct Asset; // Embed the public directory
 
 #[derive(Serialize)]
 struct TreeNode {
@@ -283,6 +289,24 @@ async fn subscribe(query: web::Query<SubscribeQuery>) -> HttpResponse {
         .streaming(sse_stream)
 }
 
+// Handler to serve embedded static files
+async fn serve_asset(req: HttpRequest) -> actix_web::Result<HttpResponse> {
+    let path = if req.path() == "/" {
+        "index.html"
+    } else {
+        &req.path()[1..] // Remove leading '/'
+    };
+    match Asset::get(path) {
+        Some(content) => {
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+            Ok(HttpResponse::Ok()
+                .content_type(mime.as_ref())
+                .body(content.data.into_owned()))
+        }
+        None => Ok(HttpResponse::NotFound().body("404 Not Found")),
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
@@ -317,7 +341,7 @@ async fn main() -> std::io::Result<()> {
             .service(connect)
             .service(get_config)
             .service(subscribe)
-            .service(Files::new("/", "./public").index_file("index.html"))
+            .default_service(web::to(serve_asset)) // Serve embedded files as default
     });
 
     if use_https {

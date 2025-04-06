@@ -28,32 +28,40 @@ export async function tryFetchWithFallback(url, customOptions = {}) {
       ...customOptions.headers
     }
   };
-  try {
-    console.log(`Trying HTTPS: ${url}`);
+  if (url.startsWith('/')) {
+    // Relative URL, fetch directly without protocol fallback
+    console.log(`Fetching relative URL: ${url}`);
     response = await fetch(url, fetchOptions);
-    if (response.ok) return response;
-    throw new Error(`HTTPS failed with status ${response.status}`);
-  } catch (httpsError) {
-    console.log(`HTTPS attempt failed: ${httpsError.message}`);
+    return response;
+  } else {
+    // Full URL, try HTTPS and fallback to HTTP
+    try {
+      console.log(`Trying HTTPS: ${url}`);
+      response = await fetch(url, fetchOptions);
+      if (response.ok) return response;
+      throw new Error(`HTTPS failed with status ${response.status}`);
+    } catch (httpsError) {
+      console.log(`HTTPS attempt failed: ${httpsError.message}`);
+    }
+    const httpUrl = url.replace('https://', 'http://');
+    console.log(`Falling back to HTTP: ${httpUrl}`);
+    response = await fetch(httpUrl, fetchOptions);
+    return response;
   }
-  const httpUrl = url.replace('https://', 'http://');
-  console.log(`Falling back to HTTP: ${httpUrl}`);
-  response = await fetch(httpUrl, fetchOptions);
-  return response;
 }
 
 /**
  * Checks the server connection, updates the UI, and triggers prompt loading and file explorer refresh.
  */
 export async function checkConnection() {
-  let endpointInput = document.getElementById('endpoint-url').value.trim() || "localhost:3000";
+  let endpointInput = document.getElementById('endpoint-url').value.trim() || "/"; // Default to relative root
   const statusElement = document.getElementById('connection-status');
 
   statusElement.textContent = "Connecting...";
   statusElement.style.color = "#e0e0e0";
 
-  if (!endpointInput.startsWith('http://') && !endpointInput.startsWith('https://')) {
-    endpointInput = `https://${endpointInput}`;
+  if (!endpointInput.startsWith('http://') && !endpointInput.startsWith('https://') && !endpointInput.startsWith('/')) {
+    endpointInput = `https://${endpointInput}`; // Prepend https:// only if not a relative path
   }
 
   try {

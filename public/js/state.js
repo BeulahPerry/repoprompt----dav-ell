@@ -34,7 +34,7 @@ export const state = {
   debounceTimer: null,            // Debounce timer reference
   selectedPrompts: new Set(),     // Track selected prompt names
   rootDirectory: null,            // Current directory path
-  baseEndpoint: "https://localhost:3000", // Base endpoint URL updated to HTTPS
+  baseEndpoint: "/",              // Base endpoint URL set to relative root
   uploadedFileTree: null,         // File tree from uploaded zip (if any)
   failedFiles: new Set(),         // Track files that failed to fetch
   whitelist: new Set(defaultWhitelist) // New whitelist property

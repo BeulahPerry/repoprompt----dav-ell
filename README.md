@@ -10,86 +10,40 @@ A free client-side version is available at [repoprompt.netlify.app](https://repo
 
 To get started quickly using the hosted client and local Rust server:
 
-1. Clone the repo:
+1. Download the binary for your distribution (.amd64 for x86 CPUs, .arm64 for ARM CPUs like M-series Macs):
    ```bash
-   git clone https://github.com/dav-ell/repoprompt
-   cd repoprompt/repoprompt-server
+   wget https://github.com/dav-ell/repoprompt/releases/download/v1.2.1/repoprompt.amd64
+   chmod +x repoprompt.amd64
    ```
 
-2. (Optional for HTTPS) Generate SSL certificates. This step is required if you want to have repoprompt.netlify.app connect to your local backend.
+2. Run it anywhere!
    ```bash
-   openssl genrsa -out server.key 2048
-   openssl req -new -x509 -key server.key -out server.cert -days 365 -sha256 -subj "/CN=localhost"
+   ./repoprompt.amd64
    ```
 
-3. Run the server:
-   ```bash
-   cargo run --release
-   ```
-
-4. Visit [repoprompt.netlify.app](https://repoprompt.netlify.app/), set the "Endpoint URL" to `https://localhost:3000` (or `http://localhost:3000` without SSL), and follow the UI steps.
-
-## Table of Contents
-
-- [Environment Setup](#environment-setup)
-- [Installation](#installation)
-- [Running the Application](#running-the-application)
-- [Usage Instructions](#usage-instructions)
-- [Custom Prompts](#custom-prompts)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
-
-## Environment Setup
-
-For the server, install [Rust and Cargo](https://www.rust-lang.org/tools/install). The client is a static web app and needs only a browser.
-
-## Installation
-
-Clone the repository:
-```bash
-git clone https://github.com/dav-ell/repoprompt
-cd repoprompt
-```
-
-## Running the Application
-
-### Server
-
-Run the server on the machine with your code:
-
-1. Download the release to your repoprompt directory.
-   ```bash
-   wget https://github.com/dav-ell/repoprompt/releases/download/v1.1/repoprompt.amd64  # Replace with arm64 if on M-series mac
-   chmod +x repoprompt.amd64  # Replace with arm64 if on M-series mac
-   ```
-
-2. (Optional) Generate SSL certificates for HTTPS:
+3. (Optional for HTTPS) Generate SSL certificates and re-run. This step is required if you want to have repoprompt.netlify.app connect to your local backend.
    ```bash
    openssl genrsa -out server.key 2048
    openssl req -new -x509 -key server.key -out server.cert -days 365 -sha256 -subj "/CN=localhost"
    ```
 
-3. Start the server:
-   ```bash
-   ./repoprompt.amd64  # Replace with arm64 if on M-series mac
-   ```
+If using [repoprompt.netlify.app](https://repoprompt.netlify.app/), set the "Endpoint URL" to `https://localhost:3000` (or `http://localhost:3000` without SSL), and follow the UI steps.
 
-The server runs on port `3000` (HTTPS with certificates, HTTP otherwise).
-
-### Client
+## Client
 
 The client can also be used separately if desired. you can use the hosted version at [repoprompt.netlify.app](https://repoprompt.netlify.app/) or serve locally:
 
 ```bash
+git clone https://github.com/dav-ell/repoprompt
 cd public
 python3 -m http.server 8000
 ```
 
 Then open `http://localhost:8000` in your browser and upload a directory using the "Upload Folder" button. Make sure to set the endpoint to your locally-hosted backend in order to use the full feature set of this application. 
 
-Note that if using the free [repoprompt.netlify.app](https://repoprompt.netlify.app/), due to browser security restrictions, you must generate SSL certificates prior to start your backend and point the website to `https://localhost:3000` instead of `http://localhost:3000`.
+Note that if using the free [repoprompt.netlify.app](https://repoprompt.netlify.app/), due to browser security restrictions, you must generate SSL certificates prior to the start your backend and point the website to `https://localhost:3000` instead of `http://localhost:3000`.
 
-## Usage Instructions
+## How to use the tool
 
 1. **Endpoint URL:** Enter the server URL (e.g., `https://localhost:3000`).
 2. **Connect:** Click **Connect** to link to the server.

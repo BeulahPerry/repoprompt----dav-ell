@@ -57,9 +57,10 @@ cd repoprompt
 
 Run the server on the machine with your code:
 
-1. Navigate to the server directory:
+1. Download the release to your repoprompt directory.
    ```bash
-   cd repoprompt-server
+   wget https://github.com/dav-ell/repoprompt/releases/download/v1.1/repoprompt.amd64  # Replace with arm64 if on M-series mac
+   chmod +x repoprompt.amd64  # Replace with arm64 if on M-series mac
    ```
 
 2. (Optional) Generate SSL certificates for HTTPS:
@@ -68,32 +69,29 @@ Run the server on the machine with your code:
    openssl req -new -x509 -key server.key -out server.cert -days 365 -sha256 -subj "/CN=localhost"
    ```
 
-3. (Optional) Link the public/ dir into the server working directory to host the client + backend locally.
+3. Start the server:
    ```bash
-   ln -s ../public public
-   ```
-
-4. Start the server:
-   ```bash
-   cargo run --release
+   ./repoprompt.amd64  # Replace with arm64 if on M-series mac
    ```
 
 The server runs on port `3000` (HTTPS with certificates, HTTP otherwise).
 
 ### Client
 
-If you skipped #3 in the above instructions, you can use the hosted version at [repoprompt.netlify.app](https://repoprompt.netlify.app/) or serve locally:
+The client can also be used separately if desired. you can use the hosted version at [repoprompt.netlify.app](https://repoprompt.netlify.app/) or serve locally:
 
 ```bash
 cd public
 python3 -m http.server 8000
 ```
 
-Then open `http://localhost:8000` in your browser.
+Then open `http://localhost:8000` in your browser and upload a directory using the "Upload Folder" button. Make sure to set the endpoint to your locally-hosted backend in order to use the full feature set of this application. 
+
+Note that if using the free [repoprompt.netlify.app](https://repoprompt.netlify.app/), due to browser security restrictions, you must generate SSL certificates prior to start your backend and point the website to `https://localhost:3000` instead of `http://localhost:3000`.
 
 ## Usage Instructions
 
-1. **Endpoint URL:** Enter the server URL (e.g., `https://localhost:3000` or `http://192.168.1.100:3000`).
+1. **Endpoint URL:** Enter the server URL (e.g., `https://localhost:3000`).
 2. **Connect:** Click **Connect** to link to the server.
 3. **Directory Path:** Input the absolute path to your project (e.g., `/home/user/project`).
 4. **File Selection:** Choose files/folders in the explorer; `.gitignore` is respected.

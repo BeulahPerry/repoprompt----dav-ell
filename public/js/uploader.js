@@ -4,7 +4,7 @@
 // and uses the browser File API for folder uploads.
 
 import { state, saveStateToLocalStorage } from './state.js';
-import { renderFileTree } from './fileTree.js';
+import { renderFileExplorer } from './fileTreeRenderer.js';
 import { updateXMLPreview } from './xmlPreview.js';
 import { isTextFile } from './utils.js';
 import { putUploadedFile, clearUploadedFiles } from './db.js';
@@ -14,26 +14,27 @@ import { putUploadedFile, clearUploadedFiles } from './db.js';
  * @param {File} file - The uploaded zip file.
  */
 export async function handleZipUpload(file) {
+  const dir = state.directories.find(d => d.id === state.currentDirectoryId);
+  if (!dir) return;
   try {
     const zip = await JSZip.loadAsync(file);
     const { tree, files } = await buildTreeFromZip(zip);
-    state.rootDirectory = "Uploaded: " + file.name;
-    state.uploadedFileTree = tree;
-    state.collapsedFolders.clear(); // Clear collapsed folders to start with all directories collapsed
-    // Store each text file in IndexedDB and skip non-text files
+    dir.tree = tree;
+    dir.files = files; // If needed
+    delete dir.error; // Clear any previous error
     await clearUploadedFiles();
     for (const [filePath, content] of Object.entries(files)) {
       if (isTextFile(filePath)) {
-        await putUploadedFile(filePath, content);
+        await putUploadedFile(dir.id, filePath, content);
       }
     }
-    // Update file explorer UI with the uploaded file tree
-    document.getElementById('file-list').innerHTML = renderFileTree(tree, "", true);
-    // Update XML preview with the new context
+    renderFileExplorer();
     await updateXMLPreview(true);
     saveStateToLocalStorage();
   } catch (err) {
     console.error("Error processing zip file: ", err);
+    dir.error = `Failed to process zip file: ${err.message}`;
+    renderFileExplorer();
     alert("Failed to process zip file: " + err.message);
   }
 }
@@ -111,24 +112,26 @@ function addToTree(tree, filePath, isDir) {
  * @param {FileList} fileList - List of files selected from the folder.
  */
 export async function handleFolderUpload(fileList) {
+  const dir = state.directories.find(d => d.id === state.currentDirectoryId);
+  if (!dir) return;
   try {
     const { tree, files: fileContents, baseFolder } = await buildTreeFromFolder(fileList);
-    state.rootDirectory = "Uploaded: " + baseFolder;
-    state.uploadedFileTree = tree;
-    state.collapsedFolders.clear(); // Clear collapsed folders to start with all directories collapsed
-    // Clear any previous uploaded files from IndexedDB
+    dir.tree = tree;
+    dir.name = baseFolder;
+    delete dir.error; // Clear any previous error
     await clearUploadedFiles();
-    // Store each text file in IndexedDB
     for (const [relativePath, content] of Object.entries(fileContents)) {
-      await putUploadedFile(relativePath, content);
+      if (isTextFile(relativePath)) {
+        await putUploadedFile(dir.id, relativePath, content);
+      }
     }
-    // Update file explorer UI with the uploaded folder tree
-    document.getElementById('file-list').innerHTML = renderFileTree(tree, "", true);
-    // Update XML preview with the new context
+    renderFileExplorer();
     await updateXMLPreview(true);
     saveStateToLocalStorage();
   } catch (err) {
     console.error("Error processing folder upload: ", err);
+    dir.error = `Failed to process folder upload: ${err.message}`;
+    renderFileExplorer();
     alert("Failed to process folder upload: " + err.message);
   }
 }

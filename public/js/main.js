@@ -3,7 +3,8 @@
 
 import { state, loadStateFromLocalStorage, saveStateToLocalStorage } from './state.js';
 import { debounce } from './utils.js';
-import { handleFileSelection, renderFileExplorer, applySavedFileSelections } from './fileTree.js';
+import { renderFileExplorer } from './fileTreeRenderer.js';
+import { handleFileSelection } from './fileSelectionManager.js';
 import { updateXMLPreview } from './xmlPreview.js';
 import { generateFileExplorer } from './explorer.js';
 import { checkConnection } from './connection.js';
@@ -12,6 +13,7 @@ import { initPromptModal } from './promptModal.js';
 import { initWhitelistModal } from './whitelist.js';
 import { handleZipUpload, handleFolderUpload } from './uploader.js';
 import { refreshSelectedFiles } from './fileContent.js';
+import { getSelectedPaths } from './fileSelectionManager.js';
 
 /**
  * Helper function to compute minimal directories from an array of file paths.
@@ -284,55 +286,53 @@ function subscribeToFileUpdates() {
     state.eventSourceRetries = 0;
   }
 
-  import('./fileTree.js').then(module => {
-    const selectedPaths = state.directories
-      .filter(dir => dir.type === 'path')
-      .flatMap(dir => module.getSelectedPaths(dir.selectedTree));
-    if (selectedPaths.length === 0) {
-      console.log("No server files selected for monitoring.");
-      return;
-    }
+  const selectedPaths = state.directories
+    .filter(dir => dir.type === 'path')
+    .flatMap(dir => getSelectedPaths(dir.selectedTree));
+  if (selectedPaths.length === 0) {
+    console.log("No server files selected for monitoring.");
+    return;
+  }
 
-    const filesParam = encodeURIComponent(JSON.stringify(selectedPaths));
-    const minimalDirs = getMinimalDirsFromFiles(selectedPaths);
-    const directoryParam = encodeURIComponent(minimalDirs[0] || '/');
-    const eventSourceUrl = `${state.baseEndpoint}/api/subscribe?directory=${directoryParam}&files=${filesParam}`;
-    console.log(`Subscribing to file updates at: ${eventSourceUrl}`);
-    const eventSource = new EventSource(eventSourceUrl);
+  const filesParam = encodeURIComponent(JSON.stringify(selectedPaths));
+  const minimalDirs = getMinimalDirsFromFiles(selectedPaths);
+  const directoryParam = encodeURIComponent(minimalDirs[0] || '/');
+  const eventSourceUrl = `${state.baseEndpoint}/api/subscribe?directory=${directoryParam}&files=${filesParam}`;
+  console.log(`Subscribing to file updates at: ${eventSourceUrl}`);
+  const eventSource = new EventSource(eventSourceUrl);
 
-    eventSource.onmessage = (event) => {
-      console.log(`SSE message received: ${event.data}`);
-    };
+  eventSource.onmessage = (event) => {
+    console.log(`SSE message received: ${event.data}`);
+  };
 
-    eventSource.addEventListener('fileUpdate', async (event) => {
-      console.log(`File update detected: ${event.data}`);
-      await refreshSelectedFiles();
-      await updateXMLPreview(true);
-      state.eventSourceRetries = 0;
-    });
-
-    eventSource.addEventListener('error', (event) => {
-      const errorMessage = event.data ? event.data : 'Unknown error occurred';
-      console.error(`Error from file monitoring: ${errorMessage}`, {
-        readyState: eventSource.readyState,
-        eventDetails: event
-      });
-      eventSource.close();
-      state.eventSource = null;
-
-      const maxRetries = 5;
-      if (state.eventSourceRetries < maxRetries) {
-        state.eventSourceRetries += 1;
-        console.log(`Reconnection attempt ${state.eventSourceRetries} of ${maxRetries} in 2 seconds...`);
-        setTimeout(() => {
-          subscribeToFileUpdates();
-        }, 2000);
-      } else {
-        console.error('Maximum reconnection attempts reached. Please check server status or file permissions.');
-      }
-    });
-
-    state.eventSource = eventSource;
+  eventSource.addEventListener('fileUpdate', async (event) => {
+    console.log(`File update detected: ${event.data}`);
+    await refreshSelectedFiles();
+    await updateXMLPreview(true);
     state.eventSourceRetries = 0;
   });
+
+  eventSource.addEventListener('error', (event) => {
+    const errorMessage = event.data ? event.data : 'Unknown error occurred';
+    console.error(`Error from file monitoring: ${errorMessage}`, {
+      readyState: eventSource.readyState,
+      eventDetails: event
+    });
+    eventSource.close();
+    state.eventSource = null;
+
+    const maxRetries = 5;
+    if (state.eventSourceRetries < maxRetries) {
+      state.eventSourceRetries += 1;
+      console.log(`Reconnection attempt ${state.eventSourceRetries} of ${maxRetries} in 2 seconds...`);
+      setTimeout(() => {
+        subscribeToFileUpdates();
+      }, 2000);
+    } else {
+      console.error('Maximum reconnection attempts reached. Please check server status or file permissions.');
+    }
+  });
+
+  state.eventSource = eventSource;
+  state.eventSourceRetries = 0;
 }

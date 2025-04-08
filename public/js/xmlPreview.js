@@ -3,7 +3,7 @@
 // then updates the preview in the UI.
 
 import { state } from './state.js';
-import { formatTree, getSelectedPaths } from './fileTree.js';
+import { formatTree } from './fileTreeRenderer.js';
 import { getFileNodes, fetchBatchFileContents } from './fileContent.js';
 import { getPromptsXML } from './prompts.js';
 import { getLanguage } from './utils.js';

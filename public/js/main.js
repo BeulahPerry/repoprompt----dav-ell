@@ -3,7 +3,7 @@
 
 import { state, loadStateFromLocalStorage, saveStateToLocalStorage } from './state.js';
 import { debounce } from './utils.js';
-import { handleFileSelection } from './fileTree.js';
+import { handleFileSelection, renderFileExplorer, applySavedFileSelections } from './fileTree.js';
 import { updateXMLPreview } from './xmlPreview.js';
 import { generateFileExplorer } from './explorer.js';
 import { checkConnection } from './connection.js';
@@ -11,7 +11,7 @@ import { loadPromptsFromStorage, renderPromptCheckboxes } from './prompts.js';
 import { initPromptModal } from './promptModal.js';
 import { initWhitelistModal } from './whitelist.js';
 import { handleZipUpload, handleFolderUpload } from './uploader.js';
-import { refreshSelectedFiles } from './fileContent.js'; // Still imported for file updates via SSE
+import { refreshSelectedFiles } from './fileContent.js';
 
 /**
  * Helper function to compute minimal directories from an array of file paths.
@@ -20,15 +20,12 @@ import { refreshSelectedFiles } from './fileContent.js'; // Still imported for f
  * @returns {Array<string>} - Minimal set of directories.
  */
 function getMinimalDirsFromFiles(paths) {
-  // Map each file to its directory
   const dirs = paths.map(file => {
     const parts = file.split('/');
     parts.pop(); // Remove filename
     return parts.join('/');
   });
-  // Remove duplicates
   const uniqueDirs = Array.from(new Set(dirs));
-  // Sort by length (shortest first)
   uniqueDirs.sort((a, b) => a.length - b.length);
   const minimal = [];
   for (const dir of uniqueDirs) {
@@ -39,20 +36,47 @@ function getMinimalDirsFromFiles(paths) {
   return minimal;
 }
 
+/**
+ * Renders the list of directories in the UI with remove buttons.
+ */
+function renderDirectoriesList() {
+  const list = document.getElementById('directories-list');
+  list.innerHTML = '';
+  state.directories.forEach(dir => {
+    const div = document.createElement('div');
+    div.className = 'directory-item';
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = dir.name || dir.path;
+    div.appendChild(nameSpan);
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', () => {
+      state.directories = state.directories.filter(d => d.id !== dir.id);
+      if (state.directories.length === 0) {
+        state.currentDirectoryId = null;
+        document.getElementById('file-list').innerHTML = '<ul><li>No directories added</li></ul>';
+      } else if (state.currentDirectoryId === dir.id) {
+        state.currentDirectoryId = state.directories[0].id;
+      }
+      renderDirectoriesList();
+      renderFileExplorer();
+      saveStateToLocalStorage();
+      updateXMLPreview(true);
+    });
+    div.appendChild(removeBtn);
+    list.appendChild(div);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   // Load saved state from IndexedDB/localStorage.
   await loadStateFromLocalStorage();
 
   // Initialize UI elements with saved state.
-  const directoryInput = document.getElementById('directory-path');
-  if (state.rootDirectory) {
-    directoryInput.value = state.rootDirectory;
-  }
   const endpointInput = document.getElementById('endpoint-url');
   if (state.baseEndpoint) {
     endpointInput.value = state.baseEndpoint;
   }
-  // Set the user instructions textarea with saved instructions.
   const userInstructionsInput = document.getElementById('user-instructions');
   if (state.userInstructions) {
     userInstructionsInput.value = state.userInstructions;
@@ -62,30 +86,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadPromptsFromStorage();
   renderPromptCheckboxes();
 
-  // Initialize prompt modal functionality.
+  // Initialize prompt and whitelist modals.
   initPromptModal();
-  // Initialize whitelist modal functionality.
   initWhitelistModal();
 
-  // Set initial visibility of directory-section
-  if (state.baseEndpoint && !state.uploadedFileTree) {
-    document.getElementById('directory-section').style.display = 'block';
+  // Render initial directories list and file explorer
+  renderDirectoriesList();
+  if (state.directories.length > 0) {
+    renderFileExplorer();
   } else {
-    document.getElementById('directory-section').style.display = 'none';
-  }
-
-  // If there is an uploaded file tree, use it to generate the file explorer;
-  // otherwise, load from the server.
-  if (state.uploadedFileTree) {
-    import('./fileTree.js').then(module => {
-      document.getElementById('file-list').innerHTML = module.renderFileTree(state.uploadedFileTree, "", true);
-    });
-    updateXMLPreview();
-  } else {
-    generateFileExplorer().then(() => {
-      // After generating the explorer, subscribe for file updates.
-      subscribeToFileUpdates();
-    });
+    document.getElementById('file-list').innerHTML = '<ul><li>No directories added</li></ul>';
   }
 
   // Debounce updating the XML preview when user instructions change.
@@ -97,28 +107,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('user-instructions').addEventListener('input', debouncedUpdate);
   document.getElementById('file-list').addEventListener('click', handleFileSelection);
   
-  // Updated copy XML event handler with Clipboard API fallback.
+  // Copy XML event handler with Clipboard API fallback.
   document.getElementById('copy-btn').addEventListener('click', async () => {
-    await updateXMLPreview(true); // Force full update of the XML preview without re-fetching file contents.
+    await updateXMLPreview(true);
     const xmlText = document.getElementById('xml-output').textContent;
     const feedbackElement = document.getElementById('copy-feedback');
     
-    // Check if Clipboard API is available.
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(xmlText)
         .then(() => {
           feedbackElement.classList.add('show');
           console.log('XML copied to clipboard');
-          setTimeout(() => {
-            feedbackElement.classList.remove('show');
-          }, 1000);
+          setTimeout(() => feedbackElement.classList.remove('show'), 1000);
         })
         .catch(err => console.error('Failed to copy XML: ', err));
     } else {
-      // Fallback for older browsers: create a temporary textarea.
       const tempTextArea = document.createElement('textarea');
       tempTextArea.value = xmlText;
-      // Avoid scrolling to bottom.
       tempTextArea.style.position = 'fixed';
       tempTextArea.style.top = '0';
       tempTextArea.style.left = '0';
@@ -132,9 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (successful) {
           feedbackElement.classList.add('show');
           console.log('XML copied to clipboard using fallback');
-          setTimeout(() => {
-            feedbackElement.classList.remove('show');
-          }, 1000);
+          setTimeout(() => feedbackElement.classList.remove('show'), 1000);
         } else {
           console.error('Fallback: Copy command was unsuccessful');
         }
@@ -145,63 +148,71 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Update directory when the user clicks the update button.
-  document.getElementById('update-directory').addEventListener('click', async function() {
-    state.rootDirectory = document.getElementById('directory-path').value.trim();
-    if (!state.rootDirectory) {
-      alert('Please enter a valid directory path');
-      return;
+  // Add directory path
+  document.getElementById('add-path-btn').addEventListener('click', async () => {
+    const path = prompt('Enter absolute directory path (e.g., /home/user/project):');
+    if (path) {
+      const dirId = Date.now();
+      const newDir = { id: dirId, type: 'path', path, tree: {}, selectedTree: {}, collapsedFolders: new Set() };
+      state.directories.push(newDir);
+      state.currentDirectoryId = dirId;
+      renderDirectoriesList();
+      await generateFileExplorer(dirId);
+      subscribeToFileUpdates();
     }
-    console.log(`Updating directory to: ${state.rootDirectory}`);
-    // Clear any previously uploaded file data if a directory is manually specified.
-    state.uploadedFileTree = null;
-    await generateFileExplorer();
-    await saveStateToLocalStorage();
-    // Re-subscribe for file updates after updating the directory
-    subscribeToFileUpdates();
   });
 
-  // Check connection when the user clicks the connect button.
+  // Check connection
   document.getElementById('connect-endpoint').addEventListener('click', async () => {
     await checkConnection();
-    if (state.baseEndpoint && !state.uploadedFileTree) {
-      document.getElementById('directory-section').style.display = 'block';
-    } else {
-      document.getElementById('directory-section').style.display = 'none';
-    }
+    document.getElementById('directory-section').style.display = state.baseEndpoint ? 'block' : 'none';
   });
 
-  // Setup the upload button and file input event listeners.
+  // Setup upload buttons and inputs
   const uploadBtn = document.getElementById('upload-btn');
   const zipInput = document.getElementById('zip-upload');
-  uploadBtn.addEventListener('click', () => {
-    zipInput.click();
-  });
+  uploadBtn.addEventListener('click', () => zipInput.click());
   zipInput.addEventListener('change', async (event) => {
     const file = event.target.files[0];
     if (file) {
+      const dirId = Date.now();
+      const newDir = { id: dirId, type: 'uploaded', name: file.name, tree: {}, selectedTree: {}, collapsedFolders: new Set() };
+      state.directories.push(newDir);
+      state.currentDirectoryId = dirId;
       await handleZipUpload(file);
-      // Re-subscribe after uploading new files
+      renderDirectoriesList();
+      renderFileExplorer();
       subscribeToFileUpdates();
     }
   });
 
-  // Setup the folder upload button and file input event listeners.
   const uploadFolderBtn = document.getElementById('upload-folder-btn');
   const folderInput = document.getElementById('folder-upload');
-  uploadFolderBtn.addEventListener('click', () => {
-    folderInput.click();
-  });
+  uploadFolderBtn.addEventListener('click', () => folderInput.click());
   folderInput.addEventListener('change', async (event) => {
     const files = event.target.files;
     if (files && files.length > 0) {
+      const dirId = Date.now();
+      const firstPath = files[0].webkitRelativePath;
+      const baseFolder = firstPath.split('/')[0];
+      const newDir = { id: dirId, type: 'uploaded', name: baseFolder, tree: {}, selectedTree: {}, collapsedFolders: new Set() };
+      state.directories.push(newDir);
+      state.currentDirectoryId = dirId;
       await handleFolderUpload(files);
-      // Re-subscribe after uploading new files
+      renderDirectoriesList();
+      renderFileExplorer();
       subscribeToFileUpdates();
     }
   });
+
+  // Update directory
+  document.getElementById('update-directory').addEventListener('click', async () => {
+    if (!state.currentDirectoryId) return;
+    await generateFileExplorer(state.currentDirectoryId);
+    subscribeToFileUpdates();
+  });
   
-  // Listen for file selection changes and re-subscribe for updates.
+  // Listen for file selection changes
   document.addEventListener('fileSelectionChanged', () => {
     subscribeToFileUpdates();
   });
@@ -213,8 +224,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const resizeHandle = document.querySelector('.resize-handle');
 
   let isResizing = false;
-
-  // Load saved width from localStorage
   let savedWidth = localStorage.getItem('fileExplorerWidth');
   if (savedWidth) {
     savedWidth = parseInt(savedWidth, 10);
@@ -263,29 +272,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 /**
  * Subscribes to the server’s file change notifications using Server-Sent Events (SSE).
- * Sends specific file paths instead of directories for efficient monitoring.
+ * Monitors files from all non-uploaded directories.
  */
 function subscribeToFileUpdates() {
-  // Close existing EventSource if it exists
   if (state.eventSource) {
     state.eventSource.close();
     state.eventSource = null;
   }
 
-  // Initialize retry count if not present
   if (!state.hasOwnProperty('eventSourceRetries')) {
     state.eventSourceRetries = 0;
   }
 
   import('./fileTree.js').then(module => {
-    const selectedPaths = module.getSelectedPaths(state.selectedTree);
+    const selectedPaths = state.directories
+      .filter(dir => dir.type === 'path')
+      .flatMap(dir => module.getSelectedPaths(dir.selectedTree));
     if (selectedPaths.length === 0) {
-      console.log("No files selected for monitoring.");
+      console.log("No server files selected for monitoring.");
       return;
     }
 
     const filesParam = encodeURIComponent(JSON.stringify(selectedPaths));
-    const directoryParam = encodeURIComponent(state.rootDirectory);
+    const minimalDirs = getMinimalDirsFromFiles(selectedPaths);
+    const directoryParam = encodeURIComponent(minimalDirs[0] || '/');
     const eventSourceUrl = `${state.baseEndpoint}/api/subscribe?directory=${directoryParam}&files=${filesParam}`;
     console.log(`Subscribing to file updates at: ${eventSourceUrl}`);
     const eventSource = new EventSource(eventSourceUrl);
@@ -298,7 +308,7 @@ function subscribeToFileUpdates() {
       console.log(`File update detected: ${event.data}`);
       await refreshSelectedFiles();
       await updateXMLPreview(true);
-      state.eventSourceRetries = 0; // Reset retries on success
+      state.eventSourceRetries = 0;
     });
 
     eventSource.addEventListener('error', (event) => {
@@ -323,6 +333,6 @@ function subscribeToFileUpdates() {
     });
 
     state.eventSource = eventSource;
-    state.eventSourceRetries = 0; // Reset retries on new connection
+    state.eventSourceRetries = 0;
   });
 }

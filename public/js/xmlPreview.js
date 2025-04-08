@@ -7,7 +7,7 @@ import { formatTree, getSelectedPaths } from './fileTree.js';
 import { getFileNodes, fetchBatchFileContents } from './fileContent.js';
 import { getPromptsXML } from './prompts.js';
 import { getLanguage } from './utils.js';
-import { getUploadedFile } from './db.js'; // Import IndexedDB function
+import { getUploadedFile } from './db.js';
 
 /**
  * Updates the XML preview based on the current state.
@@ -16,47 +16,48 @@ import { getUploadedFile } from './db.js'; // Import IndexedDB function
 export async function updateXMLPreview(forceFullUpdate = false) {
   console.log('Updating XML preview...');
 
-  // File map section: only include selected files/folders
-  let fileMapStr = `<file_map>\n${state.rootDirectory || 'No directory specified'}\n`;
-  if (Object.keys(state.selectedTree).length > 0) {
-    const treeLines = formatTree(state.selectedTree);
-    treeLines.forEach(line => fileMapStr += line + "\n");
-  } else {
-    fileMapStr += "<!-- No files selected -->\n";
-  }
-  fileMapStr += `</file_map>`;
-
-  // File contents section: process file nodes from the selected tree only
-  let fileContentsStr = `<file_contents>\n`;
-  let fileNodes = [];
-  if (Object.keys(state.selectedTree).length > 0) {
-    if (state.uploadedFileTree) {
-      // For uploaded files, get nodes from the selected tree and use the uploaded file content from IndexedDB
-      fileNodes = getFileNodes(state.selectedTree);
-      if (fileNodes.length > 0) {
-        console.log(`Processing contents for ${fileNodes.length} uploaded files`);
-        const fileContentsArray = await Promise.all(fileNodes.map(async fileNode => {
-          const lang = getLanguage(fileNode.path);
-          const content = await getUploadedFile(fileNode.path);
-          return `File: ${fileNode.path}\n\`\`\`${lang}\n${content || "<!-- Content not found -->"}\n\`\`\`\n\n`;
-        }));
-        fileContentsStr += fileContentsArray.join('');
-      } else {
-        console.log('No uploaded files selected for content fetching');
-        fileContentsStr += `<!-- No file contents available -->\n`;
-      }
-    } else {
-      // For non-uploaded files, fetch content from the server for the selected tree using batch request
-      fileNodes = getFileNodes(state.selectedTree);
-      if (fileNodes.length > 0) {
-        console.log(`Processing contents for ${fileNodes.length} files`);
-        const fileContentsArray = await fetchBatchFileContents(fileNodes, false);
-        fileContentsStr += fileContentsArray.join('');
-      } else {
-        console.log('No files selected for content fetching');
-        fileContentsStr += `<!-- No file contents available -->\n`;
-      }
+  // File map section: include selected files/folders from all directories
+  let fileMapStr = '';
+  state.directories.forEach(dir => {
+    if (Object.keys(dir.selectedTree).length > 0) {
+      fileMapStr += `<file_map directory="${dir.path || dir.name}">\n${dir.path || dir.name}\n`;
+      const treeLines = formatTree(dir.selectedTree);
+      treeLines.forEach(line => fileMapStr += line + "\n");
+      fileMapStr += `</file_map>\n`;
     }
+  });
+  if (!fileMapStr) {
+    fileMapStr = `<file_map>\n<!-- No directories or files selected -->\n</file_map>`;
+  }
+
+  // File contents section: process file nodes from all selected trees
+  let fileContentsStr = `<file_contents>\n`;
+  let allFileNodes = [];
+  state.directories.forEach(dir => {
+    if (Object.keys(dir.selectedTree).length > 0) {
+      const nodes = getFileNodes(dir.selectedTree).map(node => ({ dirId: dir.id, path: node.path, type: dir.type }));
+      allFileNodes = allFileNodes.concat(nodes);
+    }
+  });
+
+  if (allFileNodes.length > 0) {
+    console.log(`Processing contents for ${allFileNodes.length} files`);
+    const uploadedFiles = allFileNodes.filter(node => node.type === 'uploaded');
+    const serverFiles = allFileNodes.filter(node => node.type === 'path');
+
+    // Fetch contents for uploaded files from IndexedDB
+    const uploadedContents = await Promise.all(uploadedFiles.map(async node => {
+      const lang = getLanguage(node.path);
+      const content = await getUploadedFile(node.dirId, node.path);
+      return `File: ${node.path}\n\`\`\`${lang}\n${content || "<!-- Content not found -->"}\n\`\`\`\n\n`;
+    }));
+
+    // Fetch contents for server files in a batch request
+    const serverContents = serverFiles.length > 0
+      ? await fetchBatchFileContents(serverFiles.map(node => ({ path: node.path })), false)
+      : [];
+
+    fileContentsStr += uploadedContents.concat(serverContents).join('');
   } else {
     console.log('No files selected for content fetching');
     fileContentsStr += `<!-- No file contents available -->\n`;
@@ -78,7 +79,7 @@ export async function updateXMLPreview(forceFullUpdate = false) {
 
   // Update failed files list
   const failedFilesDiv = document.getElementById('failed-files');
-  failedFilesDiv.innerHTML = ''; // Clear previous content
+  failedFilesDiv.innerHTML = '';
   if (state.failedFiles.size > 0) {
     const header = document.createElement('h3');
     header.textContent = 'Files That Failed to Fetch:';

@@ -85,7 +85,7 @@ button:hover {
 .container {
   flex: 1;
   margin-left: 250px;
-  margin-top: 140px;
+  margin-top: 240px;
   padding: 20px;
   width: calc(100% - 250px); /* Ensure it fits within remaining space */
 }
@@ -488,4 +488,77 @@ button:hover {
 #manage-prompts-btn:hover {
   background-color: #0060df;
   transform: scale(1.05);
+}
+
+.directories-section {
+  margin-top: 8px;
+}
+
+.directories-section h3 {
+  font-size: 1.1rem;
+  color: #0a84ff;
+  margin-bottom: 10px;
+}
+
+.directories-list-wrapper {
+  max-height: 100px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding: 5px;
+  border: 1px solid #3a3a3c;
+  border-radius: 6px;
+}
+
+.directory-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px;
+  background-color: #3a3a3c;
+  border-radius: 6px;
+  margin-bottom: 5px;
+}
+
+.directory-item:hover {
+  background-color: #4a4a4c;
+}
+
+.directory-item span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 10px;
+}
+
+.directory-item button {
+  background-color: #ff5555;
+  color: #fff;
+  padding: 2px 5px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.directory-item button:hover {
+  background-color: #ff0000;
+}
+
+#directory-tabs {
+  margin-bottom: 10px;
+}
+
+.directory-tab {
+  padding: 5px 10px;
+  margin-right: 5px;
+  border: none;
+  border-radius: 6px;
+  background-color: #3a3a3c;
+  color: #e0e0e0;
+  cursor: pointer;
+}
+
+.directory-tab.active {
+  background-color: #0a84ff;
+  color: #fff;
 }

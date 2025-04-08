@@ -14,18 +14,23 @@
         <label for="endpoint-url">Endpoint URL:</label>
         <input type="text" id="endpoint-url" placeholder="http://localhost:3000">
         <button id="connect-endpoint">Connect</button>
-        <span>&nbsp;&nbsp;or</span>
-        <button id="upload-btn">Upload ZIP</button>
-        <input type="file" id="zip-upload" accept=".zip" style="display:none;">
-        <span>&nbsp;&nbsp;or</span>
-        <button id="upload-folder-btn">Upload Folder</button>
-        <input type="file" id="folder-upload" webkitdirectory directory multiple style="display:none;">
         <span id="connection-status"></span>
       </div>
-      <div class="directory-input" id="directory-section" style="display:none;">
-        <label for="directory-path">Directory Path:</label>
-        <input type="text" id="directory-path" placeholder="Enter absolute path (e.g., /home/user/project)">
-        <button id="update-directory">Update</button>
+      <div class="directories-section">
+        <h3>Directories</h3>
+        <div class="directories-list-wrapper">
+          <div id="directories-list"></div>
+        </div>
+        <div id="directory-section" style="display:none;">
+          <label for="directory-path">Directory Path:</label>
+          <input type="text" id="directory-path" placeholder="Enter absolute path (e.g., /home/user/project)">
+          <button id="update-directory">Update</button>
+        </div>
+        <button id="add-path-btn">Add Directory Path</button>
+        <button id="upload-btn">Upload ZIP</button>
+        <input type="file" id="zip-upload" accept=".zip" style="display:none;">
+        <button id="upload-folder-btn">Upload Folder</button>
+        <input type="file" id="folder-upload" webkitdirectory directory multiple style="display:none;">
       </div>
     </div>
   </header>
@@ -36,6 +41,7 @@
       <button id="manage-whitelist-btn" style="margin-left: 10px;">Whitelist</button>
     </h2>
     <small>Step 2: Select the files you want to include in your prompt</small>
+    <div id="directory-tabs"></div>
     <div id="file-list-container">
       <ul id="file-list"></ul>
     </div>

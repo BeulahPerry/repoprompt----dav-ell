@@ -1,15 +1,10 @@
-// src/main.rs
+// File: /Users/davell/Documents/github/repoprompt/src/main.rs
 use actix_cors::Cors;
 use actix_web::{get, post, web, App, HttpResponse, HttpRequest, HttpServer};
 use actix_web::http::header;
-use actix_web::web::Bytes;
 use rust_embed::RustEmbed; // Import rust-embed
 use mime_guess; // For determining MIME types
-use futures::channel::mpsc;
-use futures::SinkExt;
-use futures::stream::{self, StreamExt, select};
 use ignore::gitignore::Gitignore;
-use notify::{RecommendedWatcher, Watcher, Config as NotifyConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -17,16 +12,11 @@ use std::env;
 use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use alphanumeric_sort::compare_str;
 use rustls_pemfile::{certs, pkcs8_private_keys};
-use log::{error, debug};
 use tokio::fs as tokio_fs;
 use rustls::ServerConfig;
-use std::time::Duration;
-use tokio::time::interval;
-use tokio_stream::wrappers::IntervalStream;
+use futures::stream::{self, StreamExt}; // Keep futures for batch processing
 
 #[derive(RustEmbed)]
 #[folder = "public/"]
@@ -55,12 +45,6 @@ struct FileResult {
 #[derive(Deserialize)]
 struct FilesRequest {
     paths: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct SubscribeQuery {
-    directory: Option<String>,
-    files: String,
 }
 
 fn validate_path(requested_path: &str) -> Result<PathBuf, String> {
@@ -220,72 +204,13 @@ async fn connect(_req: HttpRequest) -> HttpResponse {
 
 #[get("/api/config")]
 async fn get_config() -> HttpResponse {
+    // This endpoint might not be needed anymore if refreshInterval was only for SSE
+    // For now, keep it, but it might be removed later if unused.
     let refresh_interval = env::var("REFRESH_INTERVAL")
         .unwrap_or_else(|_| "10000".to_string())
         .parse::<u64>()
         .unwrap_or(10000);
     HttpResponse::Ok().json(json!({ "success": true, "refreshInterval": refresh_interval }))
-}
-
-#[get("/api/subscribe")]
-async fn subscribe(query: web::Query<SubscribeQuery>) -> HttpResponse {
-    let directory = query.directory.clone().unwrap_or_else(|| env::current_dir().unwrap().to_string_lossy().to_string());
-    let files_json = &query.files;
-    let files: Vec<String> = match serde_json::from_str(files_json) {
-        Ok(f) => f,
-        Err(e) => return HttpResponse::BadRequest().body(format!("Failed to parse files parameter: {}", e)),
-    };
-
-    let validated_files: Vec<PathBuf> = files.iter().filter_map(|f| validate_path(f).ok()).collect();
-    if validated_files.is_empty() {
-        return HttpResponse::BadRequest().body("No valid files to watch");
-    }
-
-    let (mut tx, rx) = mpsc::unbounded();
-    let watcher_tx = Arc::new(Mutex::new(tx.clone()));
-    let mut watcher: RecommendedWatcher = Watcher::new(
-        move |res: Result<notify::Event, notify::Error>| {
-            let tx = watcher_tx.clone();
-            tokio::spawn(async move {
-                match res {
-                    Ok(event) => {
-                        let paths: Vec<String> = event.paths.iter().map(|p| p.to_string_lossy().to_string()).collect();
-                        debug!("File update detected: {:?}", paths);
-                        let _ = tx.lock().await.send(Bytes::from(
-                            format!("event: fileUpdate\ndata: {}\n\n", serde_json::to_string(&paths).unwrap())
-                        )).await;
-                    }
-                    Err(e) => {
-                        error!("Watcher error: {}", e);
-                        let _ = tx.lock().await.send(Bytes::from(
-                            format!("event: error\ndata: Watcher failed: {}\n\n", e.to_string())
-                        )).await;
-                    }
-                }
-            });
-        },
-        NotifyConfig::default(),
-    ).unwrap();
-
-    // Watch each file individually, non-recursively
-    for file in validated_files {
-        if let Err(e) = watcher.watch(&file, notify::RecursiveMode::NonRecursive) {
-            error!("Failed to watch file {}: {}", file.display(), e);
-            let _ = tx.send(Bytes::from(
-                format!("event: error\ndata: Failed to watch file {}: {}\n\n", file.display(), e)
-            )).await;
-        }
-    }
-
-    // Add keep-alive stream to send comments every 15 seconds
-    let keep_alive_stream = IntervalStream::new(interval(Duration::from_secs(15)))
-        .map(|_| Bytes::from(": keep-alive\n\n"));
-    let sse_stream = select(rx, keep_alive_stream)
-        .map(Ok::<_, std::convert::Infallible>); // Explicitly specify Result type with Infallible error
-
-    HttpResponse::Ok()
-        .content_type("text/event-stream")
-        .streaming(sse_stream)
 }
 
 // Handler to serve embedded static files
@@ -339,7 +264,6 @@ async fn main() -> std::io::Result<()> {
             .service(get_files_batch)
             .service(connect)
             .service(get_config)
-            .service(subscribe)
             .default_service(web::to(serve_asset)) // Serve embedded files as default
     });
 

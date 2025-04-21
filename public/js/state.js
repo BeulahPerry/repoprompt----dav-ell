@@ -1,4 +1,4 @@
-// public/js/state.js
+// File: /Users/davell/Documents/github/repoprompt/public/js/state.js
 // Manages application state and persistence.
 // Large state properties (directories, failed files) are persisted in IndexedDB via stateDB.js.
 
@@ -33,8 +33,7 @@ export const state = {
   baseEndpoint: "/",              // Base endpoint URL set to relative root
   failedFiles: new Set(),         // Track files that failed to fetch
   whitelist: new Set(defaultWhitelist), // Whitelist of allowed file extensions
-  eventSource: null,              // Server-Sent Events connection
-  eventSourceRetries: 0           // Retry count for SSE reconnection
+  // Removed eventSource and eventSourceRetries
 };
 
 /**

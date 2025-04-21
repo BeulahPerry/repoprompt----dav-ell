@@ -1,4 +1,4 @@
-// public/js/fileSelectionManager.js
+// File: /Users/davell/Documents/github/repoprompt/public/js/fileSelectionManager.js
 // Handles file and folder selection, and manages the selected tree state.
 
 import { state } from './state.js';
@@ -353,6 +353,5 @@ export function handleFileSelection(event) {
     buildAllSelectedTrees();
     updateXMLPreview(true);
     import('./state.js').then(module => module.saveStateToLocalStorage());
-    document.dispatchEvent(new Event('fileSelectionChanged'));
   }
 }

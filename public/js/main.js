@@ -1,4 +1,4 @@
-// public/js/main.js
+// File: /Users/davell/Documents/github/repoprompt/public/js/main.js
 // Main entry point for the application. Initializes state, attaches event listeners, and wires up all modules.
 
 import { state, loadStateFromLocalStorage, saveStateToLocalStorage } from './state.js';
@@ -12,31 +12,6 @@ import { loadPromptsFromStorage, renderPromptCheckboxes } from './prompts.js';
 import { initPromptModal } from './promptModal.js';
 import { initWhitelistModal } from './whitelist.js';
 import { handleZipUpload, handleFolderUpload } from './uploader.js';
-import { refreshSelectedFiles } from './fileContent.js';
-import { getSelectedPaths } from './fileSelectionManager.js';
-
-/**
- * Helper function to compute minimal directories from an array of file paths.
- * This reduces the size of the query string when subscribing for file updates.
- * @param {Array<string>} paths - Array of full file paths.
- * @returns {Array<string>} - Minimal set of directories.
- */
-function getMinimalDirsFromFiles(paths) {
-  const dirs = paths.map(file => {
-    const parts = file.split('/');
-    parts.pop(); // Remove filename
-    return parts.join('/');
-  });
-  const uniqueDirs = Array.from(new Set(dirs));
-  uniqueDirs.sort((a, b) => a.length - b.length);
-  const minimal = [];
-  for (const dir of uniqueDirs) {
-    if (!minimal.some(existing => dir.startsWith(existing))) {
-      minimal.push(dir);
-    }
-  }
-  return minimal;
-}
 
 /**
  * Renders the list of directories in the UI with remove buttons.
@@ -47,9 +22,27 @@ function renderDirectoriesList() {
   state.directories.forEach(dir => {
     const div = document.createElement('div');
     div.className = 'directory-item';
+
     const nameSpan = document.createElement('span');
     nameSpan.textContent = dir.name || dir.path;
     div.appendChild(nameSpan);
+
+    const buttonContainer = document.createElement('div'); // Container for buttons
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.alignItems = 'center';
+
+    // Add Update button only for 'path' type directories
+    if (dir.type === 'path') {
+      const updateBtn = document.createElement('button');
+      updateBtn.textContent = 'Update';
+      updateBtn.addEventListener('click', async () => {
+        console.log(`Manual update triggered for directory ID: ${dir.id}`);
+        await generateFileExplorer(dir.id);
+        await updateXMLPreview(true); // Refresh preview after updating tree
+      });
+      buttonContainer.appendChild(updateBtn);
+    }
+
     const removeBtn = document.createElement('button');
     removeBtn.textContent = 'Remove';
     removeBtn.addEventListener('click', () => {
@@ -65,7 +58,9 @@ function renderDirectoriesList() {
       saveStateToLocalStorage();
       updateXMLPreview(true);
     });
-    div.appendChild(removeBtn);
+    buttonContainer.appendChild(removeBtn); // Add remove button to container
+
+    div.appendChild(buttonContainer); // Add button container to directory item
     list.appendChild(div);
   });
 }
@@ -160,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.currentDirectoryId = dirId;
       renderDirectoriesList();
       await generateFileExplorer(dirId);
-      subscribeToFileUpdates();
+      // Removed subscribeToFileUpdates call
     }
   });
 
@@ -184,7 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await handleZipUpload(file);
       renderDirectoriesList();
       renderFileExplorer();
-      subscribeToFileUpdates();
+      // Removed subscribeToFileUpdates call
     }
   });
 
@@ -203,22 +198,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       await handleFolderUpload(files);
       renderDirectoriesList();
       renderFileExplorer();
-      subscribeToFileUpdates();
     }
   });
 
-  // Update directory
+  // Update directory (kept for legacy button, might be redundant now)
   document.getElementById('update-directory').addEventListener('click', async () => {
     if (!state.currentDirectoryId) return;
-    await generateFileExplorer(state.currentDirectoryId);
-    subscribeToFileUpdates();
+    const dir = state.directories.find(d => d.id === state.currentDirectoryId);
+    if (dir && dir.type === 'path') { // Only allow update for path type
+        const newPath = document.getElementById('directory-path').value.trim();
+        if (newPath && newPath !== dir.path) {
+            dir.path = newPath;
+            await generateFileExplorer(state.currentDirectoryId);
+            renderDirectoriesList(); // Re-render list to show new path
+            saveStateToLocalStorage();
+        } else if (newPath === dir.path) {
+             await generateFileExplorer(state.currentDirectoryId); // Just refresh if path is same
+        }
+    } else {
+        console.log("Update button is for path directories only or current directory not found.");
+    }
   });
   
-  // Listen for file selection changes
-  document.addEventListener('fileSelectionChanged', () => {
-    subscribeToFileUpdates();
-  });
-
   // Resizable file explorer
   const fileExplorer = document.querySelector('.file-explorer');
   const header = document.querySelector('header');
@@ -271,68 +272,3 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 });
-
-/**
- * Subscribes to the server’s file change notifications using Server-Sent Events (SSE).
- * Monitors files from all non-uploaded directories.
- */
-function subscribeToFileUpdates() {
-  if (state.eventSource) {
-    state.eventSource.close();
-    state.eventSource = null;
-  }
-
-  if (!state.hasOwnProperty('eventSourceRetries')) {
-    state.eventSourceRetries = 0;
-  }
-
-  const selectedPaths = state.directories
-    .filter(dir => dir.type === 'path')
-    .flatMap(dir => getSelectedPaths(dir.selectedTree));
-  if (selectedPaths.length === 0) {
-    console.log("No server files selected for monitoring.");
-    return;
-  }
-
-  const filesParam = encodeURIComponent(JSON.stringify(selectedPaths));
-  const minimalDirs = getMinimalDirsFromFiles(selectedPaths);
-  const directoryParam = encodeURIComponent(minimalDirs[0] || '/');
-  const eventSourceUrl = `${state.baseEndpoint}/api/subscribe?directory=${directoryParam}&files=${filesParam}`;
-  console.log(`Subscribing to file updates at: ${eventSourceUrl}`);
-  const eventSource = new EventSource(eventSourceUrl);
-
-  eventSource.onmessage = (event) => {
-    console.log(`SSE message received: ${event.data}`);
-  };
-
-  eventSource.addEventListener('fileUpdate', async (event) => {
-    console.log(`File update detected: ${event.data}`);
-    await refreshSelectedFiles();
-    await updateXMLPreview(true);
-    state.eventSourceRetries = 0;
-  });
-
-  eventSource.addEventListener('error', (event) => {
-    const errorMessage = event.data ? event.data : 'Unknown error occurred';
-    console.error(`Error from file monitoring: ${errorMessage}`, {
-      readyState: eventSource.readyState,
-      eventDetails: event
-    });
-    eventSource.close();
-    state.eventSource = null;
-
-    const maxRetries = 5;
-    if (state.eventSourceRetries < maxRetries) {
-      state.eventSourceRetries += 1;
-      console.log(`Reconnection attempt ${state.eventSourceRetries} of ${maxRetries} in 2 seconds...`);
-      setTimeout(() => {
-        subscribeToFileUpdates();
-      }, 2000);
-    } else {
-      console.error('Maximum reconnection attempts reached. Please check server status or file permissions.');
-    }
-  });
-
-  state.eventSource = eventSource;
-  state.eventSourceRetries = 0;
-}

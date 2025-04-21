@@ -1,4 +1,4 @@
-// public/js/fileContent.js
+// File: /Users/davell/Documents/github/repoprompt/public/js/fileContent.js
 // Manages file content fetching and caching.
 
 import { state } from './state.js';
@@ -35,7 +35,7 @@ export async function fetchFileContent(fileNode) {
   }
 
   const lang = getLanguage(fileNode.path);
-  console.log(`Fetching file: ${fileNode.path}`);
+  console.log(`Workspaceing file: ${fileNode.path}`);
   try {
     const url = `${state.baseEndpoint}/api/file?path=${encodeURIComponent(fileNode.path)}`;
     const response = await tryFetchWithFallback(url);
@@ -52,8 +52,8 @@ export async function fetchFileContent(fileNode) {
       throw new Error(data.error);
     }
   } catch (error) {
-    console.error(`Fetch error for ${fileNode.path}: ${error.message}`);
-    const errorContent = `File: ${fileNode.path}\n\`\`\`${lang}\n<!-- Error: ${error.message} -->\n\`\`\`\n\n`;
+    console.error(`Workspace error for ${fileNode.path}: ${error.message}`);
+    const errorContent = `File: ${fileNode.path}\n\`\`\`${lang}\n\n\`\`\`\n\n`;
     state.fileCache.set(fileNode.path, errorContent);
     state.failedFiles.add(fileNode.path);
     return errorContent;
@@ -96,7 +96,7 @@ export async function fetchBatchFileContents(fileNodes, force = false) {
             state.failedFiles.delete(path);
           } else {
             const errorMsg = result ? result.error : "Unknown error";
-            const errorContent = `File: ${path}\n\`\`\`${lang}\n<!-- Error: ${errorMsg} -->\n\`\`\`\n\n`;
+            const errorContent = `File: ${path}\n\`\`\`${lang}\n\n\`\`\`\n\n`;
             state.fileCache.set(path, errorContent);
             state.failedFiles.add(path);
           }
@@ -104,7 +104,7 @@ export async function fetchBatchFileContents(fileNodes, force = false) {
       } else {
         for (const path of pathsToFetch) {
           const lang = getLanguage(path);
-          const errorContent = `File: ${path}\n\`\`\`${lang}\n<!-- Error: Batch fetch failed -->\n\`\`\`\n\n`;
+          const errorContent = `File: ${path}\n\`\`\`${lang}\n\n\`\`\`\n\n`;
           state.fileCache.set(path, errorContent);
           state.failedFiles.add(path);
         }
@@ -113,7 +113,7 @@ export async function fetchBatchFileContents(fileNodes, force = false) {
       console.error(`Batch fetch error: ${error.message}`);
       for (const path of pathsToFetch) {
         const lang = getLanguage(path);
-        const errorContent = `File: ${path}\n\`\`\`${lang}\n<!-- Error: ${error.message} -->\n\`\`\`\n\n`;
+        const errorContent = `File: ${path}\n\`\`\`${lang}\n\n\`\`\`\n\n`;
         state.fileCache.set(path, errorContent);
         state.failedFiles.add(path);
       }
@@ -124,29 +124,7 @@ export async function fetchBatchFileContents(fileNodes, force = false) {
       return state.fileCache.get(fileNode.path);
     } else {
       const lang = getLanguage(fileNode.path);
-      return `File: ${fileNode.path}\n\`\`\`${lang}\n<!-- No content available -->\n\`\`\`\n\n`;
+      return `File: ${fileNode.path}\n\`\`\`${lang}\n\n\`\`\`\n\n`;
     }
   });
-}
-
-/**
- * Refreshes the content of all selected files by clearing their cache and re-fetching them in a single batch request.
- * @returns {Promise<void>}
- */
-export async function refreshSelectedFiles() {
-  if (state.uploadedFileTree) {
-    console.log('Skipping refresh: Using uploaded file tree, no server polling needed.');
-    return;
-  }
-  const selectedFiles = getFileNodes(state.selectedTree);
-  if (selectedFiles.length === 0) {
-    console.log('No selected files to refresh.');
-    return;
-  }
-  console.log(`Refreshing content for ${selectedFiles.length} selected files asynchronously...`);
-  selectedFiles.forEach(fileNode => {
-    state.fileCache.delete(fileNode.path);
-  });
-  await fetchBatchFileContents(selectedFiles, true);
-  console.log('Selected file contents refreshed.');
 }

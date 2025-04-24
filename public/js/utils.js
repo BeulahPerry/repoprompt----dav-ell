@@ -107,3 +107,25 @@ export function sortTreeEntries(entries) {
   // Concatenate folders followed by files
   return [...folders, ...files];
 }
+
+/**
+ * Recursively collects all folder paths from a file tree.
+ * @param {Object} tree - The file tree object.
+ * @returns {Set<string>} - A set of all folder paths in the tree.
+ */
+export function collectFolderPaths(tree) {
+  const folderPaths = new Set();
+  function traverse(node, path = '') {
+    for (const [name, child] of Object.entries(node)) {
+      if (child.type === 'folder') {
+        const folderPath = child.path || `${path}/${name}`.replace(/^\/+/, '');
+        folderPaths.add(folderPath);
+        if (child.children) {
+          traverse(child.children, folderPath);
+        }
+      }
+    }
+  }
+  traverse(tree);
+  return folderPaths;
+}

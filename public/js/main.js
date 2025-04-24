@@ -2,7 +2,7 @@
 // Main entry point for the application. Initializes state, attaches event listeners, and wires up all modules.
 
 import { state, loadStateFromLocalStorage, saveStateToLocalStorage } from './state.js';
-import { debounce } from './utils.js';
+import { debounce, collectFolderPaths } from './utils.js';
 import { renderFileExplorer } from './fileTreeRenderer.js';
 import { handleFileSelection } from './fileSelectionManager.js';
 import { updateXMLPreview } from './xmlPreview.js';
@@ -155,7 +155,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.currentDirectoryId = dirId;
       renderDirectoriesList();
       await generateFileExplorer(dirId);
-      // Removed subscribeToFileUpdates call
+      const dir = state.directories.find(d => d.id === dirId);
+      if (dir && dir.tree) {
+        dir.collapsedFolders = collectFolderPaths(dir.tree);
+        dir.collapsedFolders.add(dir.path || `dir-${dir.id}`);
+      }
+      renderFileExplorer();
+      saveStateToLocalStorage();
     }
   });
 
@@ -177,9 +183,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.directories.push(newDir);
       state.currentDirectoryId = dirId;
       await handleZipUpload(file);
+      const dir = state.directories.find(d => d.id === dirId);
+      if (dir && dir.tree) {
+        dir.collapsedFolders = collectFolderPaths(dir.tree);
+        dir.collapsedFolders.add(dir.name || `dir-${dir.id}`);
+      }
       renderDirectoriesList();
       renderFileExplorer();
-      // Removed subscribeToFileUpdates call
     }
   });
 
@@ -196,6 +206,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.directories.push(newDir);
       state.currentDirectoryId = dirId;
       await handleFolderUpload(files);
+      const dir = state.directories.find(d => d.id === dirId);
+      if (dir && dir.tree) {
+        dir.collapsedFolders = collectFolderPaths(dir.tree);
+        dir.collapsedFolders.add(dir.name || `dir-${dir.id}`);
+      }
       renderDirectoriesList();
       renderFileExplorer();
     }

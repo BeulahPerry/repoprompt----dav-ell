@@ -1,4 +1,3 @@
-// File: /Users/davell/Documents/github/repoprompt/src/main.rs
 use actix_cors::Cors;
 use actix_web::{get, post, web, App, HttpResponse, HttpRequest, HttpServer};
 use actix_web::http::header;

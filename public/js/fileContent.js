@@ -1,4 +1,3 @@
-// File: /Users/davell/Documents/github/repoprompt/public/js/fileContent.js
 // Manages file content fetching and caching.
 
 import { state } from './state.js';

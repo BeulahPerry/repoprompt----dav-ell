@@ -1,4 +1,3 @@
-// File: /Users/davell/Documents/github/repoprompt/public/js/main.js
 // Main entry point for the application. Initializes state, attaches event listeners, and wires up all modules.
 
 import { state, loadStateFromLocalStorage, saveStateToLocalStorage } from './state.js';

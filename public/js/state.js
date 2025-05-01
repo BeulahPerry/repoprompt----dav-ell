@@ -1,4 +1,3 @@
-// File: /Users/davell/Documents/github/repoprompt/public/js/state.js
 // Manages application state and persistence.
 // Large state properties (directories, failed files) are persisted in IndexedDB via stateDB.js.
 

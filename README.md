@@ -12,7 +12,7 @@ To get started quickly using the hosted client and local Rust server:
 
 1. Download the binary for your distribution (.amd64 for x86 CPUs, .arm64 for ARM CPUs like M-series Macs):
    ```bash
-   wget https://github.com/dav-ell/repoprompt/releases/download/v1.2.1/repoprompt.amd64
+   wget https://github.com/dav-ell/repoprompt/releases/download/v1.4.1/repoprompt.amd64
    chmod +x repoprompt.amd64
    ```
 

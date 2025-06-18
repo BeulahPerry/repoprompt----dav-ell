@@ -11,7 +11,6 @@ use std::env;
 use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
-use alphanumeric_sort::compare_str;
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use tokio::fs as tokio_fs;
 use rustls::ServerConfig;
@@ -58,7 +57,7 @@ fn validate_path(requested_path: &str) -> Result<PathBuf, String> {
 }
 
 fn natural_compare(a: &str, b: &str) -> std::cmp::Ordering {
-    compare_str(a, b)
+    natord::compare(a, b)
 }
 
 fn build_tree(path: &Path, ig: &Gitignore) -> Result<HashMap<String, TreeNode>, String> {
@@ -79,13 +78,14 @@ fn build_tree(path: &Path, ig: &Gitignore) -> Result<HashMap<String, TreeNode>, 
     dirents.sort_by(|a, b| {
         let a_is_dir = a.path().is_dir();
         let b_is_dir = b.path().is_dir();
-        if a_is_dir && !b_is_dir {
-            std::cmp::Ordering::Less
-        } else if !a_is_dir && b_is_dir {
-            std::cmp::Ordering::Greater
-        } else {
-            natural_compare(&a.file_name().to_string_lossy(), &b.file_name().to_string_lossy())
-        }
+        // Sort directories before files. `true` (is_dir) is "greater than" `false`.
+        // To sort directories first, we sort `is_dir` in descending order by comparing `b` to `a`.
+        b_is_dir.cmp(&a_is_dir).then_with(|| {
+            natural_compare(
+                &a.file_name().to_string_lossy(),
+                &b.file_name().to_string_lossy(),
+            )
+        })
     });
 
     for dirent in dirents {

@@ -1,4 +1,3 @@
-// public/js/prompts.js
 // Manages prompt persistence in localStorage, rendering prompt checkboxes, and generating the XML snippet for prompts.
 
 // Import the state directly to access selected prompts synchronously.

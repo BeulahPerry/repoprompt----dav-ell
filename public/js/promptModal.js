@@ -1,4 +1,3 @@
-// public/js/promptModal.js
 // Manages the modal interface for adding new prompts.
 
 import { addPrompt, editPrompt, renderPromptsManagementList } from './prompts.js';

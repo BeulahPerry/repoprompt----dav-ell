@@ -1,4 +1,3 @@
-// public/js/explorer.js
 // Manages the file explorer functionality by fetching directory contents from the server and updating the UI.
 
 import { state, saveStateToLocalStorage } from './state.js';

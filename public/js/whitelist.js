@@ -1,4 +1,3 @@
-// public/js/whitelist.js
 // Manages the whitelist for allowed file extensions.
 // Provides functions to load, save, render, add, and remove whitelist entries.
 

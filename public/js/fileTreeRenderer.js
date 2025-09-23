@@ -1,4 +1,3 @@
-// public/js/fileTreeRenderer.js
 // Handles rendering of the file tree and toggling collapse/expand.
 
 import { state } from './state.js';

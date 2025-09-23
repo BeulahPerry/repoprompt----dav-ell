@@ -70,6 +70,23 @@ fn natural_compare(a: &str, b: &str) -> std::cmp::Ordering {
     natord::compare(a, b)
 }
 
+/// Helper function to resolve a relative import/module path to a file path.
+/// Tries appending possible suffixes and checks if the resolved path exists within the root.
+fn resolve_relative_path(
+    parent_dir: &Path,
+    import_str: &str,
+    root_path: &Path,
+    suffixes: &[&str],
+) -> Option<String> {
+    for suffix in suffixes {
+        let candidate = parent_dir.join(format!("{}{}", import_str, suffix)).clean();
+        if candidate.is_file() && candidate.starts_with(root_path) {
+            return Some(candidate.to_string_lossy().to_string());
+        }
+    }
+    None
+}
+
 fn analyze_dependencies(
     root_path: &Path,
     tree: &HashMap<String, TreeNode>,
@@ -91,61 +108,267 @@ fn analyze_dependencies(
     }
     collect_files(tree, &mut files_to_scan);
 
+    // JavaScript/TypeScript
     let language_js: Language = tree_sitter_javascript::LANGUAGE.into();
-    let mut parser = Parser::new();
-    parser.set_language(&language_js).expect("Failed to load JS grammar");
-
-    let query_src = r#"
+    let mut parser_js = Parser::new();
+    if let Err(e) = parser_js.set_language(&language_js) {
+        warn!("Failed to set language for JavaScript: {}. JS/TS dependency analysis will be skipped.", e);
+    } else {
+        let query_js_src = r#"
 (import_statement source: (string (string_fragment) @path))
 (call_expression
     function: (identifier) @_fn
     arguments: (arguments (string (string_fragment) @path))
     (#eq? @_fn "require"))
 "#;
-    let query = Query::new(&language_js, query_src).expect("Failed to compile query");
+        match Query::new(&language_js, query_js_src) {
+            Ok(query_js) => {
+                let js_like_files: Vec<_> = files_to_scan.iter()
+                    .filter(|file_path_str| {
+                        let file_path = PathBuf::from(file_path_str);
+                        file_path.extension().map_or(false, |e| e == "js" || e == "jsx" || e == "ts" || e == "tsx")
+                    })
+                    .collect();
+                
+                debug!("Found {} JavaScript/TypeScript files to scan for dependencies.", js_like_files.len());
 
-    let js_like_files: Vec<_> = files_to_scan.iter()
-        .filter(|file_path_str| {
-            let file_path = PathBuf::from(file_path_str);
-            file_path.extension().map_or(false, |e| e == "js" || e == "jsx" || e == "ts" || e == "tsx")
-        })
-        .collect();
-    
-    debug!("Found {} JavaScript/TypeScript files to scan for dependencies.", js_like_files.len());
+                for file_path_str in js_like_files {
+                    let file_path = PathBuf::from(file_path_str);
+                    debug!("Scanning JS/TS file for dependencies: {}", file_path.display());
 
-    for file_path_str in js_like_files {
-        let file_path = PathBuf::from(file_path_str);
-        debug!("Scanning file for dependencies: {}", file_path.display());
-
-        if let Ok(content) = fs::read_to_string(&file_path) {
-            if let Some(tree) = parser.parse(content.as_bytes(), None) {
-                let mut cursor = QueryCursor::new();
-                let mut matches_iter = cursor.matches(&query, tree.root_node(), content.as_bytes());
-                while let Some(mat) = matches_iter.next() {
-                    for cap in mat.captures {
-                        let cap_name = query.capture_names()[cap.index as usize];
-                        if cap_name == "path" {
-                            let path_node = cap.node;
-                            let import_path_str = &content[path_node.byte_range()];
-                            debug!("Found potential import '{}' in '{}'", import_path_str, file_path.display());
-                            if let Some(parent_dir) = file_path.parent() {
-                                let possible_exts = ["", ".js", ".jsx", ".ts", ".tsx", "/index.js", "/index.jsx", "/index.ts", "/index.tsx"];
-                                for ext in possible_exts.iter() {
-                                    let resolved_path = parent_dir.join(format!("{}{}", import_path_str, ext)).clean();
-                                    if resolved_path.is_file() && resolved_path.starts_with(root_path) {
-                                        let resolved_path_str = resolved_path.to_string_lossy().to_string();
-                                        dependency_graph
-                                            .entry(file_path_str.clone())
-                                            .or_insert_with(Vec::new)
-                                            .push(resolved_path_str);
+                    if let Ok(content) = fs::read_to_string(&file_path) {
+                        if let Some(tree) = parser_js.parse(content.as_bytes(), None) {
+                            let mut cursor = QueryCursor::new();
+                            let mut matches_iter = cursor.matches(&query_js, tree.root_node(), content.as_bytes());
+                            while let Some(mat) = matches_iter.next() {
+                                for cap in mat.captures {
+                                    let cap_name = query_js.capture_names()[cap.index as usize];
+                                    if cap_name == "path" {
+                                        let path_node = cap.node;
+                                        let import_path_str = &content[path_node.byte_range()];
+                                        let clean_import = import_path_str.trim_matches('"').trim_matches('\'');
+                                        debug!("Found JS/TS import '{}' in '{}'", clean_import, file_path.display());
+                                        if let Some(parent_dir) = file_path.parent() {
+                                            let possible_exts = ["", ".js", ".jsx", ".ts", ".tsx", "/index.js", "/index.jsx", "/index.ts", "/index.tsx"];
+                                            if let Some(resolved) = resolve_relative_path(parent_dir, clean_import, root_path, &possible_exts) {
+                                                dependency_graph
+                                                    .entry(file_path_str.clone())
+                                                    .or_insert_with(Vec::new)
+                                                    .push(resolved);
+                                            }
+                                        }
                                         break;
                                     }
                                 }
                             }
-                            break;  // Only one @path per match
                         }
                     }
                 }
+            },
+            Err(e) => {
+                warn!("Failed to compile JavaScript tree-sitter query: {}. JS/TS dependency analysis will be skipped.", e);
+            }
+        }
+    }
+
+    // Python
+    let language_py: Language = tree_sitter_python::LANGUAGE.into();
+    let mut parser_py = Parser::new();
+    if let Err(e) = parser_py.set_language(&language_py) {
+        warn!("Failed to set language for Python: {}. Python dependency analysis will be skipped.", e);
+    } else {
+        let query_py_src = r#"
+(import_statement
+  (dotted_name) @module
+)
+(import_from_statement
+  module_name: (dotted_name) @module
+)
+"#;
+        match Query::new(&language_py, query_py_src) {
+            Ok(query_py) => {
+                let py_files: Vec<_> = files_to_scan.iter()
+                    .filter(|file_path_str| {
+                        let file_path = PathBuf::from(file_path_str);
+                        file_path.extension().map_or(false, |e| e == "py")
+                    })
+                    .collect();
+                
+                debug!("Found {} Python files to scan for dependencies.", py_files.len());
+
+                for file_path_str in py_files {
+                    let file_path = PathBuf::from(file_path_str);
+                    debug!("Scanning Python file for dependencies: {}", file_path.display());
+
+                    if let Ok(content) = fs::read_to_string(&file_path) {
+                        if let Some(tree) = parser_py.parse(content.as_bytes(), None) {
+                            let mut cursor = QueryCursor::new();
+                            let mut matches_iter = cursor.matches(&query_py, tree.root_node(), content.as_bytes());
+                            while let Some(mat) = matches_iter.next() {
+                                for cap in mat.captures {
+                                    let cap_name = query_py.capture_names()[cap.index as usize];
+                                    if cap_name == "module" {
+                                        let path_node = cap.node;
+                                        let module_str = &content[path_node.byte_range()];
+                                        let clean_import = module_str.replace('.', "/");
+                                        debug!("Found Python import '{}' in '{}'", clean_import, file_path.display());
+                                        if let Some(parent_dir) = file_path.parent() {
+                                            let possible_exts = [".py", "/__init__.py"];
+                                            if let Some(resolved) = resolve_relative_path(parent_dir, &clean_import, root_path, &possible_exts) {
+                                                dependency_graph
+                                                    .entry(file_path_str.clone())
+                                                    .or_insert_with(Vec::new)
+                                                    .push(resolved);
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            Err(e) => {
+                warn!("Failed to compile Python tree-sitter query: {}. Python dependency analysis will be skipped.", e);
+            }
+        }
+    }
+
+    // Rust
+    let language_rs: Language = tree_sitter_rust::LANGUAGE.into();
+    let mut parser_rs = Parser::new();
+    if let Err(e) = parser_rs.set_language(&language_rs) {
+        warn!("Failed to set language for Rust: {}. Rust dependency analysis will be skipped.", e);
+    } else {
+        let query_rs_src = r#"
+(mod_item
+    name: (identifier) @module
+)
+(use_declaration
+    argument: [
+        (identifier) @module
+        (scoped_identifier) @module
+    ]
+)
+"#;
+        match Query::new(&language_rs, query_rs_src) {
+            Ok(query_rs) => {
+                let rs_files: Vec<_> = files_to_scan.iter()
+                    .filter(|file_path_str| {
+                        let file_path = PathBuf::from(file_path_str);
+                        file_path.extension().map_or(false, |e| e == "rs")
+                    })
+                    .collect();
+                
+                debug!("Found {} Rust files to scan for dependencies.", rs_files.len());
+
+                for file_path_str in rs_files {
+                    let file_path = PathBuf::from(file_path_str);
+                    debug!("Scanning Rust file for dependencies: {}", file_path.display());
+
+                    if let Ok(content) = fs::read_to_string(&file_path) {
+                        if let Some(tree) = parser_rs.parse(content.as_bytes(), None) {
+                            let mut cursor = QueryCursor::new();
+                            let mut matches_iter = cursor.matches(&query_rs, tree.root_node(), content.as_bytes());
+                            while let Some(mat) = matches_iter.next() {
+                                for cap in mat.captures {
+                                    let cap_name = query_rs.capture_names()[cap.index as usize];
+                                    if cap_name == "module" {
+                                        let path_node = cap.node;
+                                        let module_str = &content[path_node.byte_range()];
+                                        
+                                        let mut clean_import = if let Some(stripped) = module_str.strip_prefix("self::") {
+                                            stripped.to_string()
+                                        } else if let Some(stripped) = module_str.strip_prefix("super::") {
+                                            format!("../{}", stripped)
+                                        } else {
+                                            module_str.to_string()
+                                        };
+                                        clean_import = clean_import.replace("::", "/");
+
+                                        debug!("Found Rust module/use '{}', processed to '{}' in '{}'", module_str, clean_import, file_path.display());
+                                        if let Some(parent_dir) = file_path.parent() {
+                                            let possible_exts = [".rs", "/mod.rs"];
+                                            if let Some(resolved) = resolve_relative_path(parent_dir, &clean_import, root_path, &possible_exts) {
+                                                dependency_graph
+                                                    .entry(file_path_str.clone())
+                                                    .or_insert_with(Vec::new)
+                                                    .push(resolved);
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            Err(e) => {
+                warn!("Failed to compile Rust tree-sitter query: {}. Rust dependency analysis will be skipped.", e);
+            }
+        }
+    }
+
+    // C++
+    let language_cpp: Language = tree_sitter_cpp::LANGUAGE.into();
+    let mut parser_cpp = Parser::new();
+    if let Err(e) = parser_cpp.set_language(&language_cpp) {
+        warn!("Failed to set language for C++: {}. C++ dependency analysis will be skipped.", e);
+    } else {
+        let query_cpp_src = r#"
+(preproc_include
+  path: (string_literal (string_content) @header)
+)
+"#;
+        match Query::new(&language_cpp, query_cpp_src) {
+            Ok(query_cpp) => {
+                let cpp_files: Vec<_> = files_to_scan.iter()
+                    .filter(|file_path_str| {
+                        let file_path = PathBuf::from(file_path_str);
+                        let ext = file_path.extension().and_then(|s| s.to_str());
+                        matches!(ext, Some("cpp" | "c" | "h" | "hpp" | "hxx"))
+                    })
+                    .collect();
+                
+                debug!("Found {} C++ files to scan for dependencies.", cpp_files.len());
+
+                for file_path_str in cpp_files {
+                    let file_path = PathBuf::from(file_path_str);
+                    debug!("Scanning C++ file for dependencies: {}", file_path.display());
+
+                    if let Ok(content) = fs::read_to_string(&file_path) {
+                        if let Some(tree) = parser_cpp.parse(content.as_bytes(), None) {
+                            let mut cursor = QueryCursor::new();
+                            let mut matches_iter = cursor.matches(&query_cpp, tree.root_node(), content.as_bytes());
+                            while let Some(mat) = matches_iter.next() {
+                                for cap in mat.captures {
+                                    let cap_name = query_cpp.capture_names()[cap.index as usize];
+                                    if cap_name == "header" {
+                                        let path_node = cap.node;
+                                        let header_str = &content[path_node.byte_range()];
+                                        let clean_import = header_str.trim_matches('"').trim_matches('\'');
+                                        debug!("Found C++ include '{}' in '{}'", clean_import, file_path.display());
+                                        if let Some(parent_dir) = file_path.parent() {
+                                            let possible_exts = ["", ".h", ".hpp", ".hxx"];
+                                            if let Some(resolved) = resolve_relative_path(parent_dir, clean_import, root_path, &possible_exts) {
+                                                dependency_graph
+                                                    .entry(file_path_str.clone())
+                                                    .or_insert_with(Vec::new)
+                                                    .push(resolved);
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            Err(e) => {
+                warn!("Failed to compile C++ tree-sitter query: {}. C++ dependency analysis will be skipped.", e);
             }
         }
     }
@@ -263,7 +486,7 @@ async fn get_file_content(query: web::Query<DirectoryQuery>) -> HttpResponse {
             return HttpResponse::BadRequest().json(json!({"success": false, "error": "Path is required"}));
         }
     };
-    debug!("Reading file content for: {}", path_str);
+    debug!("Reading file: {}", path_str);
     match tokio_fs::read_to_string(path_str).await {
         Ok(content) => {
             debug!("Successfully read file: {}", path_str);

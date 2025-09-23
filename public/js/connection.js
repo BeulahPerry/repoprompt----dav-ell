@@ -1,4 +1,3 @@
-// public/js/connection.js
 // Handles server connection checks with protocol fallback.
 
 import { state } from './state.js';

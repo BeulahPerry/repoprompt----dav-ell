@@ -1,4 +1,3 @@
-// public/js/xmlPreview.js
 // Generates XML output for the file mapping, file contents, and selected prompts,
 // then updates the preview in the UI.
 

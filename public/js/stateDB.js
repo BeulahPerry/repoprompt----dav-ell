@@ -1,4 +1,3 @@
-// public/js/stateDB.js
 // Provides functions to store and retrieve application state in IndexedDB.
 
 export function openStateDB() {

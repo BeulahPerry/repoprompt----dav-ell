@@ -1,4 +1,3 @@
-// public/js/utils.js
 // Contains utility helper functions.
 
 import { state } from './state.js';

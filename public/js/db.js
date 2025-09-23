@@ -1,4 +1,3 @@
-// public/js/db.js
 // Handles interactions with IndexedDB for storing uploaded file contents.
 // This module provides functions to open the database, store, retrieve, and clear uploaded files.
 

@@ -1,4 +1,3 @@
-// public/js/uploader.js
 // Handles the uploading and processing of a zip file or folder containing a directory.
 // Uses JSZip (loaded from the CDN) to unzip and build a file tree with file contents for zip uploads,
 // and uses the browser File API for folder uploads.

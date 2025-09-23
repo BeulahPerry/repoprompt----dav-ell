@@ -11,6 +11,7 @@
   --border-color: #3a3b3e;
   --error-color: #ff3b30;
   --success-color: #34c759;
+  --dependency-color: #34c759; /* Green for dependencies */
   --border-radius: 8px;
   --shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
@@ -127,16 +128,32 @@ header {
   padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color: 0.15s ease;
+  transition: background-color 0.15s ease, outline 0.15s ease;
 }
 
-.file-explorer li:hover > div {
+.folder-header:hover, .file-header:hover {
   background-color: var(--bg-tertiary);
 }
 
 .file-explorer li[data-file].selected > .file-header {
+  outline: 1px solid var(--accent-primary);
+  background-color: rgba(0, 122, 255, 0.1);
+}
+
+.file-explorer li[data-file].selected > .file-header:hover {
   background-color: rgba(0, 122, 255, 0.2);
 }
+
+/* Dependency Highlighting */
+.file-explorer li[data-file].dependency > .file-header {
+  outline: 1px solid var(--dependency-color);
+  background-color: rgba(52, 199, 89, 0.15);
+}
+
+.file-explorer li[data-file].dependency > .file-header:hover {
+  background-color: rgba(52, 199, 89, 0.25);
+}
+
 
 /* --- COLLAPSE/EXPAND LOGIC --- */
 /* Rule to HIDE the nested list when collapsed */
@@ -427,7 +444,8 @@ button#manage-whitelist-btn {
   overflow: auto;
   background-color: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(5px);
-  padding: 2rem;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-content {
@@ -441,7 +459,6 @@ button#manage-whitelist-btn {
   box-shadow: 0 10px 30px rgba(0,0,0,0.3);
   display: flex;
   flex-direction: column;
-  margin: auto;
 }
 
 .modal-header {

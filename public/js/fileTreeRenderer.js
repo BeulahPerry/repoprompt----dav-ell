@@ -30,6 +30,7 @@ export function renderFileTree(tree, selectedTree, collapsedFolders, dirId, pare
     if (entry.type === "file") {
       const isText = isTextFile(entry.path);
       const isSelected = !!selectedTree[entry.name];
+
       html += `<li data-file="${entry.path}" data-text-file="${isText}" data-dir-id="${dirId}" title="${entry.path}">`;
       html += `<div class="file-header">`;
       html += `<input type="checkbox" class="file-checkbox" ${isText ? '' : 'disabled'} ${isSelected ? 'checked' : ''}>`;

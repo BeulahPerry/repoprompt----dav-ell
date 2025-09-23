@@ -24,7 +24,7 @@ const defaultWhitelist = [
 
 export const state = {
   fileCache: new Map(),           // Cache for file contents
-  directories: [],                // Array of { id, type, path, name, tree, selectedTree, collapsedFolders }
+  directories: [],                // Array of { id, type, path, name, tree, selectedTree, collapsedFolders, dependencyGraph }
   currentDirectoryId: null,       // ID of the currently displayed directory
   userInstructions: "No instructions provided.",
   debounceTimer: null,            // Debounce timer reference

@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const path = prompt('Enter absolute directory path (e.g., /home/user/project):');
     if (path) {
       const dirId = Date.now();
-      const newDir = { id: dirId, type: 'path', path, tree: {}, selectedTree: {}, collapsedFolders: new Set() };
+      const newDir = { id: dirId, type: 'path', path, tree: {}, selectedTree: {}, collapsedFolders: new Set(), dependencyGraph: {} };
       state.directories.push(newDir);
       state.currentDirectoryId = dirId;
       renderDirectoriesList();
@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const file = event.target.files[0];
     if (file) {
       const dirId = Date.now();
-      const newDir = { id: dirId, type: 'uploaded', name: file.name, tree: {}, selectedTree: {}, collapsedFolders: new Set() };
+      const newDir = { id: dirId, type: 'uploaded', name: file.name, tree: {}, selectedTree: {}, collapsedFolders: new Set(), dependencyGraph: {} };
       state.directories.push(newDir);
       state.currentDirectoryId = dirId;
       await handleZipUpload(file);
@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dirId = Date.now();
       const firstPath = files[0].webkitRelativePath;
       const baseFolder = firstPath.split('/')[0];
-      const newDir = { id: dirId, type: 'uploaded', name: baseFolder, tree: {}, selectedTree: {}, collapsedFolders: new Set() };
+      const newDir = { id: dirId, type: 'uploaded', name: baseFolder, tree: {}, selectedTree: {}, collapsedFolders: new Set(), dependencyGraph: {} };
       state.directories.push(newDir);
       state.currentDirectoryId = dirId;
       await handleFolderUpload(files);

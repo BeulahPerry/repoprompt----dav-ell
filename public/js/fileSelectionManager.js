@@ -6,6 +6,53 @@ import { updateXMLPreview } from './xmlPreview.js';
 import { isTextFile } from './utils.js';
 
 /**
+ * Updates the UI to highlight files that are dependencies of the currently selected files.
+ */
+function updateDependencyHighlights() {
+  // Clear all existing dependency highlights first.
+  document.querySelectorAll('li.dependency').forEach(li => {
+    li.classList.remove('dependency');
+  });
+
+  // Gather all unique paths of selected files across all directories.
+  const selectedPaths = new Set();
+  state.directories.forEach(dir => {
+    getSelectedPaths(dir.selectedTree).forEach(path => {
+      selectedPaths.add(path);
+    });
+  });
+
+  // Determine the set of dependencies from the selected files.
+  const dependencyPaths = new Set();
+  state.directories.forEach(dir => {
+    // Check if the directory has a dependency graph.
+    if (!dir.dependencyGraph) return;
+
+    // For each selected file, find its dependencies from the graph.
+    selectedPaths.forEach(selectedPath => {
+      if (dir.dependencyGraph[selectedPath]) {
+        dir.dependencyGraph[selectedPath].forEach(depPath => {
+          // A file is a dependency if it's not also directly selected by the user.
+          if (!selectedPaths.has(depPath)) {
+            dependencyPaths.add(depPath);
+          }
+        });
+      }
+    });
+  });
+
+  // Apply the 'dependency' class to the corresponding file elements in the DOM.
+  dependencyPaths.forEach(path => {
+    // Escape double quotes in path for the query selector.
+    const escapedPath = path.replace(/"/g, '\\"');
+    const fileLi = document.querySelector(`li[data-file="${escapedPath}"]`);
+    if (fileLi) {
+      fileLi.classList.add('dependency');
+    }
+  });
+}
+
+/**
  * Applies saved file selections to the file tree in the DOM for all directories.
  */
 export async function applySavedFileSelections() {
@@ -28,6 +75,7 @@ export async function applySavedFileSelections() {
   }
   buildAllSelectedTrees();
   updateAllFolderCheckboxes();
+  updateDependencyHighlights();
 }
 
 /**
@@ -349,6 +397,7 @@ export function handleFileSelection(event) {
 
   if (selectionChanged) {
     buildAllSelectedTrees();
+    updateDependencyHighlights();
     updateXMLPreview(true);
     import('./state.js').then(module => module.saveStateToLocalStorage());
   }

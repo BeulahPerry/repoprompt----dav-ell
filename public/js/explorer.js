@@ -37,6 +37,7 @@ export async function generateFileExplorer(dirId) {
     if (data.success) {
       dir.path = data.root; // Update with canonicalized path from server
       dir.tree = data.tree; // Assign the full tree structure
+      dir.dependencyGraph = data.dependencyGraph || {}; // Store the dependency graph
       delete dir.error; // Clear any previous error
       state.fileCache.clear(); // Clear cache when directory changes
       console.log('File explorer updated successfully with tree:', dir.tree);

@@ -41,7 +41,7 @@ export function renderFileTree(tree, selectedTree, collapsedFolders, dirId, pare
       html += `<li data-folder="${folderPath}" data-dir-id="${dirId}" class="${isCollapsed ? 'collapsed' : ''}" title="${folderPath}">`;
       html += `<div class="folder-header">`;
       html += `<input type="checkbox" class="folder-checkbox">`;
-      html += `<span class="folder-toggle"></span>`;
+      html += `<svg class="folder-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
       html += `<span class="folder-name">${entry.name}</span>`;
       html += `</div>`;
       const childSelectedTree = selectedTree[entry.name]?.children || {};
@@ -66,7 +66,7 @@ export function renderFileExplorer() {
     html += `<li data-folder="${dirIdentifier}" data-dir-id="${dir.id}" class="${isCollapsed ? 'collapsed' : ''}" title="${dirIdentifier}">`;
     html += `<div class="folder-header">`;
     html += `<input type="checkbox" class="folder-checkbox" ${dir.error ? 'disabled' : ''}>`;
-    html += `<span class="folder-toggle"></span>`;
+    html += `<svg class="folder-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
     html += `<span class="folder-name">${dirName}</span>`;
     html += `</div>`;
     if (dir.error) {

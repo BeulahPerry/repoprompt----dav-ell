@@ -24,26 +24,26 @@ function renderDirectoriesList() {
 
     const nameSpan = document.createElement('span');
     nameSpan.textContent = dir.name || dir.path;
+    nameSpan.title = dir.name || dir.path;
     div.appendChild(nameSpan);
 
-    const buttonContainer = document.createElement('div'); // Container for buttons
-    buttonContainer.style.display = 'flex';
-    buttonContainer.style.alignItems = 'center';
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'btn-group';
 
-    // Add Update button only for 'path' type directories
     if (dir.type === 'path') {
       const updateBtn = document.createElement('button');
-      updateBtn.textContent = 'Update';
+      updateBtn.textContent = 'Refresh';
       updateBtn.addEventListener('click', async () => {
         console.log(`Manual update triggered for directory ID: ${dir.id}`);
         await generateFileExplorer(dir.id);
-        await updateXMLPreview(true); // Refresh preview after updating tree
+        await updateXMLPreview(true);
       });
       buttonContainer.appendChild(updateBtn);
     }
 
     const removeBtn = document.createElement('button');
     removeBtn.textContent = 'Remove';
+    removeBtn.className = 'remove-btn';
     removeBtn.addEventListener('click', () => {
       state.directories = state.directories.filter(d => d.id !== dir.id);
       if (state.directories.length === 0) {
@@ -57,12 +57,13 @@ function renderDirectoriesList() {
       saveStateToLocalStorage();
       updateXMLPreview(true);
     });
-    buttonContainer.appendChild(removeBtn); // Add remove button to container
+    buttonContainer.appendChild(removeBtn);
 
-    div.appendChild(buttonContainer); // Add button container to directory item
+    div.appendChild(buttonContainer);
     list.appendChild(div);
   });
 }
+
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Load saved state from IndexedDB/localStorage.
@@ -91,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.directories.length > 0) {
     renderFileExplorer();
   } else {
-    document.getElementById('file-list').innerHTML = '<ul><li>No directories added</li></ul>';
+    document.getElementById('file-list').innerHTML = '<ul><li style="padding: 1rem; color: var(--text-secondary);">No directories added yet.</li></ul>';
   }
 
   // Debounce updating the XML preview when user instructions change.
@@ -113,8 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       navigator.clipboard.writeText(xmlText)
         .then(() => {
           feedbackElement.classList.add('show');
-          console.log('XML copied to clipboard');
-          setTimeout(() => feedbackElement.classList.remove('show'), 1000);
+          setTimeout(() => feedbackElement.classList.remove('show'), 1500);
         })
         .catch(err => console.error('Failed to copy XML: ', err));
     } else {
@@ -132,8 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const successful = document.execCommand('copy');
         if (successful) {
           feedbackElement.classList.add('show');
-          console.log('XML copied to clipboard using fallback');
-          setTimeout(() => feedbackElement.classList.remove('show'), 1000);
+          setTimeout(() => feedbackElement.classList.remove('show'), 1500);
         } else {
           console.error('Fallback: Copy command was unsuccessful');
         }
@@ -167,7 +166,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check connection
   document.getElementById('connect-endpoint').addEventListener('click', async () => {
     await checkConnection();
-    document.getElementById('directory-section').style.display = state.baseEndpoint ? 'block' : 'none';
   });
 
   // Setup upload buttons and inputs
@@ -236,23 +234,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Resizable file explorer
   const fileExplorer = document.querySelector('.file-explorer');
-  const header = document.querySelector('header');
-  const container = document.querySelector('.container');
   const resizeHandle = document.querySelector('.resize-handle');
 
   let isResizing = false;
   let savedWidth = localStorage.getItem('fileExplorerWidth');
   if (savedWidth) {
     savedWidth = parseInt(savedWidth, 10);
-    const minWidth = 100;
-    const maxWidth = window.innerWidth - 100;
+    const minWidth = 200;
+    const maxWidth = window.innerWidth - 300;
     if (savedWidth < minWidth) savedWidth = minWidth;
     if (savedWidth > maxWidth) savedWidth = maxWidth;
     fileExplorer.style.width = `${savedWidth}px`;
-    header.style.left = `${savedWidth}px`;
-    header.style.width = `calc(100% - ${savedWidth}px)`;
-    container.style.marginLeft = `${savedWidth}px`;
-    container.style.width = `calc(100% - ${savedWidth}px)`;
   }
 
   resizeHandle.addEventListener('mousedown', (e) => {
@@ -264,15 +256,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('mousemove', (e) => {
     if (isResizing) {
       let newWidth = e.clientX;
-      const minWidth = 100;
-      const maxWidth = window.innerWidth - 100;
+      const minWidth = 200;
+      const maxWidth = window.innerWidth - 300;
       if (newWidth < minWidth) newWidth = minWidth;
       if (newWidth > maxWidth) newWidth = maxWidth;
       fileExplorer.style.width = `${newWidth}px`;
-      header.style.left = `${newWidth}px`;
-      header.style.width = `calc(100% - ${newWidth}px)`;
-      container.style.marginLeft = `${newWidth}px`;
-      container.style.width = `calc(100% - ${newWidth}px)`;
     }
   });
 

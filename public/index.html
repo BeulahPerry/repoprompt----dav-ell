@@ -4,110 +4,130 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RepoPrompt UI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header>
-    <div class="project-source">
-      <small>Step 1: Choose how to provide your project files</small>
-      <div class="endpoint-input">
-        <label for="endpoint-url">Endpoint URL:</label>
-        <input type="text" id="endpoint-url" placeholder="http://localhost:3000">
-        <button id="connect-endpoint">Connect</button>
-        <span id="connection-status"></span>
+  <aside class="file-explorer">
+    <div class="file-explorer-header">
+      <h2>File Explorer</h2>
+      <button id="manage-whitelist-btn">Whitelist</button>
+    </div>
+
+    <div class="directories-section">
+      <h3>Project Directories</h3>
+      <div class="directories-list-wrapper">
+        <div id="directories-list"></div>
       </div>
-      <div class="directories-section">
-        <h3>Directories</h3>
-        <div class="directories-list-wrapper">
-          <div id="directories-list"></div>
-        </div>
-        <div id="directory-section" style="display:none;">
-          <label for="directory-path">Directory Path:</label>
-          <input type="text" id="directory-path" placeholder="Enter absolute path (e.g., /home/user/project)">
-          <button id="update-directory">Update</button>
-        </div>
-        <button id="add-path-btn">Add Directory Path</button>
+      <div class="directory-actions">
+        <button id="add-path-btn">Add Path</button>
         <button id="upload-btn">Upload ZIP</button>
         <input type="file" id="zip-upload" accept=".zip" style="display:none;">
         <button id="upload-folder-btn">Upload Folder</button>
         <input type="file" id="folder-upload" webkitdirectory directory multiple style="display:none;">
       </div>
     </div>
-  </header>
-  
-  <aside class="file-explorer">
-    <h2 style="display: flex; align-items: center; justify-content: space-between;">
-      <span>Files</span>
-      <button id="manage-whitelist-btn" style="margin-left: 10px;">Whitelist</button>
-    </h2>
-    <small>Step 2: Select the files you want to include in your prompt</small>
-    <div id="directory-tabs"></div>
+
     <div id="file-list-container">
       <ul id="file-list"></ul>
     </div>
     <div class="resize-handle"></div>
   </aside>
-  
-  <div class="container">
-    <main class="content-area">
-      <section class="prompt-selection">
-        <h2>Select Prompts</h2>
-        <small>Step 3: Select or manage custom prompts</small>
-        <div id="prompt-checkboxes"></div>
-        <button id="manage-prompts-btn">Manage Prompts</button>
-      </section>
-      <section class="user-input">
-        <h2>User Instructions</h2>
-        <small>Step 4: Enter your instructions for the model</small>
-        <textarea id="user-instructions" placeholder="Type your instructions here..." rows="7"></textarea>
-      </section>
-      <section class="xml-preview">
-        <h2>XML Prompt Preview</h2>
-        <small>Step 5: Copy the generated XML</small>
-        <pre id="xml-output"><xml><!-- XML will be generated here --></xml></pre>
-        <button id="copy-btn">Copy XML</button>
-        <span id="copy-feedback">copied!</span>
-        <div id="failed-files"></div>
-      </section>
+
+  <div class="main-content-wrapper">
+    <header>
+      <h1 class="app-title">RepoPrompt</h1>
+      <div class="project-source">
+        <div class="endpoint-input">
+          <label for="endpoint-url">Server URL:</label>
+          <input type="text" id="endpoint-url" placeholder="http://localhost:3000">
+          <button id="connect-endpoint">Connect</button>
+          <span id="connection-status"></span>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="content-area">
+        <section class="prompt-selection">
+          <h2>Prompts</h2>
+          <div id="prompt-checkboxes"></div>
+          <button id="manage-prompts-btn">Manage Prompts</button>
+        </section>
+        <section class="user-input">
+          <h2>Instructions</h2>
+          <textarea id="user-instructions" placeholder="Enter your instructions for the model..." rows="7"></textarea>
+        </section>
+      	<section class="xml-preview">
+          <div class="xml-preview-header">
+            <h2>Prompt Preview</h2>
+            <div class="xml-actions">
+              <span id="copy-feedback">Copied!</span>
+              <button id="copy-btn">Copy</button>
+            </div>
+          </div>
+          <pre id="xml-output"><xml></xml></pre>
+          <div id="failed-files"></div>
+        </section>
+      </div>
     </main>
   </div>
 
-  <!-- Prompt Modal -->
-  <div id="prompt-modal" class="modal">
+
+    <div id="prompt-modal" class="modal">
     <div class="modal-content">
-      <span class="close">×</span>
-      <h2>Manage Prompts</h2>
-      <div>
-        <label for="new-prompt-name">Prompt Name:</label>
-        <input type="text" id="new-prompt-name" placeholder="Enter prompt name">
+      <div class="modal-header">
+        <h2>Manage Prompts</h2>
+        <span class="close">×</span>
       </div>
-      <div>
-        <label for="new-prompt-text">Prompt Text:</label>
-        <textarea id="new-prompt-text" placeholder="Enter prompt text" rows="7"></textarea>
+      <div class="modal-body">
+        <div>
+          <label for="new-prompt-name">Prompt Name:</label>
+          <input type="text" id="new-prompt-name" placeholder="Enter prompt name">
+        </div>
+        <div>
+          <label for="new-prompt-text">Prompt Text:</label>
+          <textarea id="new-prompt-text" placeholder="Enter prompt text" rows="7"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button id="save-prompt">Save Prompt</button>
+          <button id="cancel-edit" style="display:none;">Cancel Edit</button>
+        </div>
+        <h3 class="existing-prompts-header">Existing Prompts</h3>
+        <div id="prompt-management-list"></div>
       </div>
-      <button id="save-prompt">Save Prompt</button>
-      <button id="cancel-edit" style="display:none;">Cancel Edit</button>
-      <h3 style="padding-top: 20px;">Existing Prompts</h3>
-      <div id="prompt-management-list"></div>
     </div>
   </div>
 
-  <!-- Whitelist Modal -->
-  <div id="whitelist-modal" class="modal">
+    <div id="whitelist-modal" class="modal">
     <div class="modal-content">
-      <span class="close">×</span>
-      <h2>Manage Whitelist</h2>
-      <p style="font-size: 0.9rem; margin-bottom: 10px;">
-        Tip: You can whitelist any file patterns using wildcards (*). For example, "dockerfile*" will match all Dockerfile variants.
-      </p>
-      <div>
-        <label for="new-whitelist-value">New Whitelist Extension:</label>
-        <input type="text" id="new-whitelist-value" placeholder="e.g., .txt">
+      <div class="modal-header">
+        <h2>Manage Whitelist</h2>
+        <span class="close">×</span>
       </div>
-      <button id="save-whitelist">Add Extension</button>
-      <h3 style="padding-top: 20px;">Current Whitelist</h3>
-      <div id="whitelist-management-list"></div>
+      <div class="modal-body">
+        <p class="modal-tip">
+          Tip: You can use wildcards (*), like "dockerfile*".
+        </p>
+        <div>
+          <label for="new-whitelist-value">New Whitelist Pattern:</label>
+          <input type="text" id="new-whitelist-value" placeholder="e.g., *.log or .txt">
+        </div>
+        <div class="modal-actions">
+          <button id="save-whitelist">Add Pattern</button>
+        </div>
+        <h3 class="existing-prompts-header">Current Whitelist</h3>
+        <div id="whitelist-management-list"></div>
+      </div>
     </div>
+  </div>
+
+    <div id="directory-section" style="display:none;">
+    <label for="directory-path">Directory Path:</label>
+    <input type="text" id="directory-path" placeholder="Enter absolute path (e.g., /home/user/project)">
+    <button id="update-directory">Update</button>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>

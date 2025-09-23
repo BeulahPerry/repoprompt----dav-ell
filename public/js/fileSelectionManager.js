@@ -322,25 +322,24 @@ export function handleFileSelection(event) {
   }
 
   state.failedFiles.clear();
-
   let selectionChanged = false;
 
+  // Priority 1: Handle checkbox clicks for selection
   if (target.classList.contains('folder-checkbox')) {
-    const checkbox = target;
-    toggleFolderSelection(li, checkbox.checked);
+    toggleFolderSelection(li, target.checked);
     selectionChanged = true;
   } else if (target.classList.contains('file-checkbox')) {
-    const checkbox = target;
-    toggleFileSelection(li, checkbox.checked);
+    toggleFileSelection(li, target.checked);
     selectionChanged = true;
-  } else if (target.classList.contains('folder-toggle') || target.classList.contains('folder-name')) {
-    const isCheckboxClick = target.closest('.folder-header').querySelector('.folder-checkbox')?.contains(target);
-    if (!isCheckboxClick) {
-      import('./fileTreeRenderer.js').then(module => {
-        module.toggleFolderCollapse(li);
-      });
-    }
-  } else if (target.classList.contains('file-name') && li.getAttribute('data-text-file') === 'true') {
+  }
+  // Priority 2: Handle clicks on the folder row for collapsing
+  else if (target.closest('.folder-header')) {
+    import('./fileTreeRenderer.js').then(module => {
+      module.toggleFolderCollapse(li);
+    });
+  }
+  // Priority 3: Handle clicks on the file row for selection
+  else if (target.closest('.file-header') && li.getAttribute('data-text-file') === 'true') {
     const checkbox = li.querySelector('.file-checkbox');
     if (checkbox) {
       toggleFileSelection(li, !checkbox.checked);

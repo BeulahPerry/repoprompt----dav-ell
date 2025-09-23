@@ -97,7 +97,7 @@ export function initWhitelistModal() {
   }
   
   openBtn.addEventListener('click', () => {
-    modal.style.display = 'block';
+    modal.style.display = 'flex';
     renderWhitelistManagementList();
   });
   

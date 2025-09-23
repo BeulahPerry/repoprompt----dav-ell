@@ -27,7 +27,7 @@ export function initPromptModal() {
 
   // Show modal when clicking "Manage Prompts" button
   openBtn.addEventListener('click', () => {
-    modal.style.display = 'block';
+    modal.style.display = 'flex';
     // Render the management list when the modal opens
     renderPromptsManagementList();
   });

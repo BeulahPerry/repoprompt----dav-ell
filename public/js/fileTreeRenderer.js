@@ -34,6 +34,7 @@ export function renderFileTree(tree, selectedTree, collapsedFolders, dirId, pare
       html += `<div class="file-header">`;
       html += `<input type="checkbox" class="file-checkbox" ${isText ? '' : 'disabled'} ${isSelected ? 'checked' : ''}>`;
       html += `<span class="file-name">${entry.name}</span>`;
+      html += `<span class="dependency-indicator">dep</span>`;
       html += `</div></li>`;
     } else if (entry.type === "folder") {
       const folderPath = entry.path;

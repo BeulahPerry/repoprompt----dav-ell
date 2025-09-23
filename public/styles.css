@@ -154,6 +154,19 @@ header {
   background-color: rgba(52, 199, 89, 0.25);
 }
 
+.dependency-indicator {
+  display: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.file-explorer li.dependency .dependency-indicator {
+  display: inline-block;
+  color: var(--dependency-color);
+}
+
 
 /* --- COLLAPSE/EXPAND LOGIC --- */
 /* Rule to HIDE the nested list when collapsed */
@@ -180,6 +193,7 @@ header {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-grow: 1;
 }
 
 .file-explorer li[data-text-file="false"] {

@@ -6,7 +6,7 @@ use mime_guess;
 use ignore::gitignore::Gitignore;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs::{self, File as FsFile};
 use std::io::BufReader;
@@ -15,7 +15,7 @@ use rustls_pemfile::{certs, pkcs8_private_keys};
 use tokio::fs as tokio_fs;
 use rustls::ServerConfig;
 use futures::stream::{self, StreamExt};
-use tree_sitter::{Parser, Language, Query, QueryCursor}; 
+use tree_sitter::{Parser, Language, Query, QueryCursor};
 use std::error::Error;
 use path_clean::PathClean;
 use tree_sitter_javascript;
@@ -85,6 +85,41 @@ fn resolve_relative_path(
         }
     }
     None
+}
+
+fn process_python_module(
+    module_str: &str,
+    file_path_str: &String,
+    file_path: &Path,
+    root_path: &Path,
+    dependency_graph: &mut HashMap<String, Vec<String>>,
+) {
+     let clean_import = if module_str.starts_with('.') {
+        // Relative import like 'from .foo import ...' or 'from ..foo.bar import ...'
+        let num_dots = module_str.find(|c| c != '.').unwrap_or(module_str.len());
+        
+        let mut path_prefix = String::new();
+        if num_dots > 1 {
+            path_prefix.push_str(&"../".repeat(num_dots - 1));
+        }
+
+        let module_part = &module_str[num_dots..];
+        format!("{}{}", path_prefix, module_part.replace('.', "/"))
+    } else {
+        // Absolute import
+        module_str.replace('.', "/")
+    };
+    
+    debug!("Found Python import '{}', processed to '{}' in '{}'", module_str, clean_import, file_path.display());
+    if let Some(parent_dir) = file_path.parent() {
+        let possible_exts = [".py", "/__init__.py"];
+        if let Some(resolved) = resolve_relative_path(parent_dir, &clean_import, root_path, &possible_exts) {
+            dependency_graph
+                .entry(file_path_str.clone())
+                .or_insert_with(Vec::new)
+                .push(resolved);
+        }
+    }
 }
 
 fn analyze_dependencies(
@@ -178,11 +213,30 @@ fn analyze_dependencies(
         warn!("Failed to set language for Python: {}. Python dependency analysis will be skipped.", e);
     } else {
         let query_py_src = r#"
-(import_statement
-  (dotted_name) @module
-)
+; Pattern 0: import foo
+(import_statement (dotted_name) @module)
+
+; Pattern 1: from foo.bar import ... and from .foo import ...
 (import_from_statement
-  module_name: (dotted_name) @module
+    module_name: [
+        (dotted_name) @module
+        ; This captures the entire relative_import node (e.g., ".foo")
+        ; if it has a module name part.
+        (relative_import (dotted_name) . ) @module
+    ]
+)
+
+; Pattern 2: from . import foo
+(import_from_statement
+    ; capture the relative_import node as @dots
+    module_name: (relative_import) @dots
+    name: [
+        (dotted_name) @name
+        (aliased_import name: (dotted_name) @name)
+    ]
+    ; predicate to ensure it only contains dots, making it mutually
+    ; exclusive with the relative import part of Pattern 1.
+    (#match? @dots "^\.+$")
 )
 "#;
         match Query::new(&language_py, query_py_src) {
@@ -204,25 +258,38 @@ fn analyze_dependencies(
                         if let Some(tree) = parser_py.parse(content.as_bytes(), None) {
                             let mut cursor = QueryCursor::new();
                             let mut matches_iter = cursor.matches(&query_py, tree.root_node(), content.as_bytes());
+                            
                             while let Some(mat) = matches_iter.next() {
-                                for cap in mat.captures {
-                                    let cap_name = query_py.capture_names()[cap.index as usize];
-                                    if cap_name == "module" {
-                                        let path_node = cap.node;
-                                        let module_str = &content[path_node.byte_range()];
-                                        let clean_import = module_str.replace('.', "/");
-                                        debug!("Found Python import '{}' in '{}'", clean_import, file_path.display());
-                                        if let Some(parent_dir) = file_path.parent() {
-                                            let possible_exts = [".py", "/__init__.py"];
-                                            if let Some(resolved) = resolve_relative_path(parent_dir, &clean_import, root_path, &possible_exts) {
-                                                dependency_graph
-                                                    .entry(file_path_str.clone())
-                                                    .or_insert_with(Vec::new)
-                                                    .push(resolved);
+                                match mat.pattern_index {
+                                    0 | 1 => { // import a.b, from a.b import c, from .a import c
+                                        for cap in mat.captures {
+                                            if query_py.capture_names()[cap.index as usize] == "module" {
+                                                let module_str = &content[cap.node.byte_range()];
+                                                process_python_module(module_str, file_path_str, &file_path, root_path, &mut dependency_graph);
                                             }
                                         }
-                                        break;
-                                    }
+                                    },
+                                    2 => { // from . import a, from .. import b
+                                        let mut dots_opt = None;
+                                        let mut names = Vec::new();
+                                        for cap in mat.captures {
+                                            let cap_name = query_py.capture_names()[cap.index as usize];
+                                            let text = &content[cap.node.byte_range()];
+                                            match cap_name {
+                                                "dots" => dots_opt = Some(text),
+                                                "name" => names.push(text),
+                                                _ => {}
+                                            }
+                                        }
+
+                                        if let Some(dots) = dots_opt {
+                                            for name in names {
+                                                let combined_module = format!("{}{}", dots, name);
+                                                process_python_module(&combined_module, file_path_str, &file_path, root_path, &mut dependency_graph);
+                                            }
+                                        }
+                                    },
+                                    _ => {} // Unhandled pattern
                                 }
                             }
                         }
@@ -319,7 +386,7 @@ fn analyze_dependencies(
     } else {
         let query_cpp_src = r#"
 (preproc_include
-  path: (string_literal (string_content) @header)
+    path: (string_literal (string_content) @header)
 )
 "#;
         match Query::new(&language_cpp, query_cpp_src) {
@@ -429,6 +496,49 @@ fn build_tree(path: &Path, ig: &Gitignore) -> Result<HashMap<String, TreeNode>, 
     Ok(tree)
 }
 
+fn collect_transitive_init_deps(
+    init_file: &str,
+    original_graph: &HashMap<String, Vec<String>>,
+    final_deps: &mut HashSet<String>,
+    visited: &mut HashSet<String>,
+) {
+    if !visited.insert(init_file.to_string()) {
+        return; // Cycle detected or already visited
+    }
+
+    if let Some(init_direct_deps) = original_graph.get(init_file) {
+        for dep in init_direct_deps {
+            final_deps.insert(dep.clone());
+            if Path::new(dep).file_name().and_then(|s| s.to_str()) == Some("__init__.py") {
+                collect_transitive_init_deps(dep, original_graph, final_deps, visited);
+            }
+        }
+    }
+}
+
+fn expand_init_dependencies(
+    dependency_graph: &HashMap<String, Vec<String>>,
+) -> HashMap<String, Vec<String>> {
+    let mut expanded_graph = HashMap::new();
+
+    for (file, direct_deps) in dependency_graph {
+        let mut final_deps: HashSet<String> = direct_deps.iter().cloned().collect();
+        
+        for dep in direct_deps {
+            if Path::new(dep).file_name().and_then(|s| s.to_str()) == Some("__init__.py") {
+                let mut visited = HashSet::new();
+                collect_transitive_init_deps(dep, dependency_graph, &mut final_deps, &mut visited);
+            }
+        }
+        
+        let mut sorted_deps: Vec<String> = final_deps.into_iter().collect();
+        sorted_deps.sort_by(|a, b| natord::compare(a, b));
+        expanded_graph.insert(file.clone(), sorted_deps);
+    }
+
+    expanded_graph
+}
+
 #[get("/api/connect")]
 async fn connect() -> HttpResponse {
     HttpResponse::Ok().json(json!({ "success": true, "message": "Connection successful" }))
@@ -467,13 +577,15 @@ async fn get_directory_contents(query: web::Query<DirectoryQuery>) -> HttpRespon
         }
     };
 
+    let expanded_graph = expand_init_dependencies(&dependency_graph);
+
     let duration = start_time.elapsed();
     info!("Successfully processed directory '{}' in {:.2?}.", path.display(), duration);
     HttpResponse::Ok().json(json!({
         "success": true,
         "root": path.to_str().unwrap_or(""),
         "tree": tree,
-        "dependencyGraph": dependency_graph,
+        "dependencyGraph": expanded_graph,
     }))
 }
 

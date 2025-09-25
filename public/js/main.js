@@ -11,6 +11,7 @@ import { loadPromptsFromStorage, renderPromptCheckboxes } from './prompts.js';
 import { initPromptModal } from './promptModal.js';
 import { initWhitelistModal } from './whitelist.js';
 import { handleZipUpload, handleFolderUpload } from './uploader.js';
+import { initDependencyGraph, updateDependencyGraph } from './dependencyGraph.js';
 
 /**
  * Renders the list of directories in the UI with remove buttons.
@@ -56,6 +57,7 @@ function renderDirectoriesList() {
       renderFileExplorer();
       saveStateToLocalStorage();
       updateXMLPreview(true);
+      updateDependencyGraph();
     });
     buttonContainer.appendChild(removeBtn);
 
@@ -86,6 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize prompt and whitelist modals.
   initPromptModal();
   initWhitelistModal();
+  initDependencyGraph();
 
   // Render initial directories list and file explorer
   renderDirectoriesList();
@@ -94,6 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     document.getElementById('file-list').innerHTML = '<ul><li style="padding: 1rem; color: var(--text-secondary);">No directories added yet.</li></ul>';
   }
+  updateDependencyGraph();
 
   // Debounce updating the XML preview when user instructions change.
   const debouncedUpdate = debounce(() => {
@@ -187,6 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       renderDirectoriesList();
       renderFileExplorer();
+      updateDependencyGraph();
     }
   });
 
@@ -210,6 +215,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       renderDirectoriesList();
       renderFileExplorer();
+      updateDependencyGraph();
     }
   });
 

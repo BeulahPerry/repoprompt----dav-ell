@@ -446,6 +446,25 @@ button#manage-whitelist-btn {
   overflow-wrap: break-word; /* Ensure long file paths can wrap */
 }
 
+/* --- DEPENDENCY GRAPH --- */
+.dependency-graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.dependency-graph-header h2 {
+  margin-bottom: 0;
+}
+#graph {
+  width: 100%;
+  height: 400px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+
+
 /* --- MODAL STYLES --- */
 .modal {
   display: none;

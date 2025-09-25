@@ -4,6 +4,7 @@ import { state, saveStateToLocalStorage } from './state.js';
 import { renderFileExplorer } from './fileTreeRenderer.js';
 import { updateXMLPreview } from './xmlPreview.js';
 import { tryFetchWithFallback } from './connection.js';
+import { updateDependencyGraph } from './dependencyGraph.js';
 
 /**
  * Generates the file explorer by fetching directory contents from the server for a specific directory and updating the UI.
@@ -18,12 +19,14 @@ export async function generateFileExplorer(dirId) {
 
   if (dir.type === 'uploaded') {
     renderFileExplorer();
+    updateDependencyGraph();
     return;
   }
 
   if (!dir.path) {
     dir.error = 'No path specified for this directory';
     renderFileExplorer();
+    updateDependencyGraph();
     return;
   }
 
@@ -55,4 +58,5 @@ export async function generateFileExplorer(dirId) {
     renderFileExplorer();
     console.error('Network error:', error.message);
   }
+  updateDependencyGraph();
 }

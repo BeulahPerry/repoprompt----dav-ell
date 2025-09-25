@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { setState, getState } from './stateDB.js';
 import { updateXMLPreview } from './xmlPreview.js';
 import { isTextFile } from './utils.js';
+import { updateDependencyGraphSelection } from './dependencyGraph.js';
 
 /**
  * Updates the UI to highlight files that are dependencies of the currently selected files.
@@ -399,6 +400,7 @@ export function handleFileSelection(event) {
     buildAllSelectedTrees();
     updateDependencyHighlights();
     updateXMLPreview(true);
+    updateDependencyGraphSelection();
     import('./state.js').then(module => module.saveStateToLocalStorage());
   }
 }

@@ -60,6 +60,12 @@
           <h2>Instructions</h2>
           <textarea id="user-instructions" placeholder="Enter your instructions for the model..." rows="7"></textarea>
         </section>
+        <section class="dependency-graph">
+          <div class="dependency-graph-header">
+            <h2>Dependency Graph</h2>
+          </div>
+          <div id="graph"></div>
+        </section>
       	<section class="xml-preview">
           <div class="xml-preview-header">
             <h2>Prompt Preview</h2>
@@ -131,6 +137,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://unpkg.com/force-graph"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -94,7 +94,6 @@ export async function checkConnection() {
       statusElement.style.color = "#00ff00";
       console.log(`Successfully connected to ${state.baseEndpoint}`);
       await loadPromptsFromStorage();
-      await generateFileExplorer();
       import('./state.js').then(module => {
         module.saveStateToLocalStorage();
       });

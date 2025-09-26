@@ -247,6 +247,16 @@ export function updateDependencyGraph() {
     if (!svg) return; // Still couldn't init
   }
   regenerateBaseGraphData();
+
+  const graphSection = document.getElementById('dependency-graph-section');
+  if (graphSection) {
+    if (baseGraphData.links.length === 0) {
+      graphSection.style.display = 'none';
+    } else {
+      graphSection.style.display = 'block';
+    }
+  }
+
   updateDependencyGraphSelection(); // Render with new base data
 }
 

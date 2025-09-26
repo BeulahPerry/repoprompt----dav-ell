@@ -269,6 +269,23 @@ header {
   margin-bottom: 16px;
 }
 
+/* --- USER INPUT --- */
+.user-input-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.user-input-header h2 {
+  margin-bottom: 0;
+}
+
+.copy-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* --- FORMS & BUTTONS --- */
 label {
   font-weight: 500;
@@ -423,12 +440,6 @@ button#manage-whitelist-btn {
 
 .xml-preview details[open] > summary .preview-toggle {
   transform: rotate(90deg);
-}
-
-.xml-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 #xml-output {

@@ -81,6 +81,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     userInstructionsInput.value = state.userInstructions;
   }
 
+  // Automatically connect to the endpoint on page load.
+  await checkConnection();
+
   // Load available prompts from localStorage and render prompt checkboxes.
   loadPromptsFromStorage();
   renderPromptCheckboxes();

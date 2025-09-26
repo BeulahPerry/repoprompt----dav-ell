@@ -58,7 +58,11 @@ export async function loadStateFromLocalStorage() {
   const savedEndpoint = localStorage.getItem(STORAGE_KEYS.ENDPOINT_URL);
   if (savedEndpoint) {
     state.baseEndpoint = savedEndpoint;
+  } else if (window.location.protocol.startsWith('http')) {
+    // If no endpoint is saved, default to the current page's origin.
+    state.baseEndpoint = window.location.origin;
   }
+
   const savedPrompts = localStorage.getItem(STORAGE_KEYS.PROMPT_SELECTION);
   if (savedPrompts) {
     try {

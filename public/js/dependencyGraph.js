@@ -24,6 +24,9 @@ export function initDependencyGraph() {
     .backgroundColor('rgba(0,0,0,0)') // Transparent background
     .linkColor(link => link.color || 'rgba(160, 160, 160, 0.5)')
     .linkWidth(1)
+    .linkDirectionalArrowLength(3.5)
+    .linkDirectionalArrowColor(link => link.color || 'rgba(160, 160, 160, 0.5)')
+    .cooldownTicks(200) // Let the graph settle for 200 ticks and then stop the simulation.
     .onNodeHover(node => graphElement.style.cursor = node ? 'pointer' : null)
     .onNodeClick(node => {
         if (!node) return;
@@ -52,7 +55,9 @@ export function initDependencyGraph() {
         ctx.fill();
 
         // Draw the label text permanently above the node
-        const fontSize = 12 / globalScale; // Adjust font size on zoom
+        // The font size is scaled with the zoom level, but at a square root rate
+        // to make it shrink on zoom-out, but not become unreadable too quickly.
+        const fontSize = 12 / Math.sqrt(globalScale);
         ctx.font = `${fontSize}px Sans-Serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -60,8 +65,18 @@ export function initDependencyGraph() {
         ctx.fillStyle = 'rgba(240, 240, 240, 0.9)'; 
         // Position text above the node circle
         ctx.fillText(label, node.x, node.y - radius - 5);
+    })
+    .onEngineStop(() => {
+      state.isGraphFrozen = true;
     });
   
+  state.isGraphFrozen = false;
+  
+  // Adjust physics to create much looser node spacing, especially for tight clusters
+  Graph.d3Force('charge').strength(-200); // Strong repulsion to break up tight clusters
+  Graph.d3Force('link').distance(80);     // Much longer links to spread connected nodes
+  Graph.d3Force('link').strength(0.3);    // Weaker link strength so repulsion can overcome attraction
+
   // Handle window resize
   window.addEventListener('resize', () => {
     if (Graph) {
@@ -112,6 +127,7 @@ export function updateDependencyGraph() {
         initDependencyGraph();
         if (!Graph) return; // Still couldn't init
     }
+    state.isGraphFrozen = false;
     regenerateBaseGraphData();
     updateDependencyGraphSelection(); // Render with new base data
 }
@@ -212,4 +228,13 @@ export function updateDependencyGraphSelection() {
     }
 
     Graph.graphData({ nodes: finalNodes, links: baseGraphData.links });
+    if (state.isGraphFrozen) {
+        // Try to stop the simulation when graph is frozen
+        try {
+            Graph.d3AlphaTarget(0).d3Reheat();
+        } catch (e) {
+            // If that doesn't work, just continue - the graph will settle naturally
+            console.log('Could not freeze graph simulation:', e);
+        }
+    }
 }

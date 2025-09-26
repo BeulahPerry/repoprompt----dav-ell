@@ -56,6 +56,11 @@ export async function checkConnection() {
   let endpointInput = document.getElementById('endpoint-url').value.trim() || "/"; // Default to relative root
   const statusElement = document.getElementById('connection-status');
 
+  // Make robust to trailing slashes, but don't modify the root path "/"
+  if (endpointInput.length > 1 && endpointInput.endsWith('/')) {
+    endpointInput = endpointInput.slice(0, -1);
+  }
+
   statusElement.textContent = "Connecting...";
   statusElement.style.color = "#e0e0e0";
 

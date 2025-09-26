@@ -67,15 +67,22 @@
           <div id="graph"></div>
         </section>
       	<section class="xml-preview">
-          <div class="xml-preview-header">
-            <h2>Prompt Preview</h2>
-            <div class="xml-actions">
-              <span id="copy-feedback">Copied!</span>
-              <button id="copy-btn">Copy</button>
-            </div>
-          </div>
-          <pre id="xml-output"><xml></xml></pre>
-          <div id="failed-files"></div>
+          <details id="xml-preview-details">
+            <summary>
+              <div class="xml-preview-header">
+                <div class="summary-title">
+                  <svg class="preview-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  <h2>Prompt Preview</h2>
+                </div>
+                <div class="xml-actions">
+                  <span id="copy-feedback">Copied!</span>
+                  <button id="copy-btn">Copy</button>
+                </div>
+              </div>
+            </summary>
+            <pre id="xml-output"><xml></xml></pre>
+            <div id="failed-files"></div>
+          </details>
         </section>
       </div>
     </main>

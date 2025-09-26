@@ -240,33 +240,107 @@ export function getSelectedPaths(tree) {
 }
 
 /**
+ * Toggles the collapse state of a folder.
+ * Moved from fileTreeRenderer.js to break a circular dependency and co-locate UI logic.
+ * @param {HTMLElement} li - The folder li element.
+ */
+function toggleFolderCollapse(li) {
+  const dirId = li.getAttribute('data-dir-id');
+  const dir = state.directories.find(d => String(d.id) === dirId);
+  if (!dir) return;
+
+  const folderPath = li.getAttribute('data-folder');
+  const isCollapsed = li.classList.contains('collapsed');
+
+  if (isCollapsed) {
+    li.classList.remove('collapsed');
+    dir.collapsedFolders.delete(folderPath);
+    // When expanding, sync children's UI state, as it may have changed
+    // while the folder was collapsed. This is a key performance optimization.
+    syncExpandedFolderState(li);
+  } else {
+    li.classList.add('collapsed');
+    dir.collapsedFolders.add(folderPath);
+  }
+  import('./state.js').then(module => {
+    module.saveStateToLocalStorage();
+  });
+}
+
+/**
+ * Recursively propagates selection state to the UI of visible (expanded) children.
+ * This is the core of the performance optimization, as it avoids manipulating the DOM
+ * for children inside collapsed folders.
+ * @param {HTMLElement} li - The parent folder `li` element.
+ * @param {boolean} select - The selection state to propagate.
+ */
+function propagateSelectionToVisibleChildren(li, select) {
+  if (li.classList.contains('collapsed')) {
+    return; // Stop if folder is collapsed, as its children are not visible.
+  }
+
+  const childUl = li.querySelector(':scope > ul');
+  if (!childUl) return;
+
+  const childItems = childUl.querySelectorAll(':scope > li');
+  childItems.forEach(childLi => {
+    if (childLi.hasAttribute('data-file')) {
+      const checkbox = childLi.querySelector('.file-checkbox');
+      if (checkbox && !checkbox.disabled) {
+        checkbox.checked = select;
+        childLi.classList.toggle('selected', select);
+      }
+    } else if (childLi.hasAttribute('data-folder')) {
+      const checkbox = childLi.querySelector('.folder-checkbox');
+      if (checkbox) {
+        checkbox.checked = select;
+        checkbox.indeterminate = false;
+      }
+      // Recurse to handle nested expanded folders
+      propagateSelectionToVisibleChildren(childLi, select);
+    }
+  });
+}
+
+/**
+ * When a folder is expanded, this function ensures its children's UI state (checkboxes)
+ * matches the folder's selection state (checked or unchecked). This is necessary because
+ * UI updates are deferred for collapsed folders to improve performance.
+ * @param {HTMLElement} li - The folder `li` element that was just expanded.
+ */
+function syncExpandedFolderState(li) {
+  const folderCheckbox = li.querySelector(':scope > .folder-header > .folder-checkbox');
+  // Only propagate state if the folder is fully checked or unchecked (not indeterminate).
+  if (folderCheckbox && !folderCheckbox.indeterminate) {
+    propagateSelectionToVisibleChildren(li, folderCheckbox.checked);
+  }
+}
+
+/**
  * Recursively selects or deselects all children (files and folders) of a folder LI element.
- * Updates checkbox states and 'selected' class for files.
+ * Updates checkbox states and 'selected' class for files. This is optimized to only
+ * update visible children to prevent UI stutter with large, collapsed directories.
  * @param {HTMLElement} li - The folder li element.
  * @param {boolean} select - Whether to select or deselect.
  */
 function toggleFolderSelection(li, select) {
   console.log(`Toggling folder ${li.getAttribute('data-folder')} to ${select}`);
-  const fileLis = li.querySelectorAll(':scope > ul li[data-file]');
-  fileLis.forEach(fileLi => {
-    const checkbox = fileLi.querySelector('.file-checkbox');
-    if (checkbox && !checkbox.disabled) {
-      checkbox.checked = select;
-      fileLi.classList.toggle('selected', select);
-    }
-  });
 
-  const subfolderLis = li.querySelectorAll(':scope > ul li[data-folder]');
-  subfolderLis.forEach(subLi => {
-    const checkbox = subLi.querySelector('.folder-checkbox');
-    if (checkbox) {
-      checkbox.checked = select;
-      checkbox.indeterminate = false;
-    }
-  });
+  // Update the state of the folder that was clicked. This is fast.
+  const checkbox = li.querySelector('.folder-checkbox');
+  if (checkbox) {
+    checkbox.checked = select;
+    checkbox.indeterminate = false;
+  }
 
+  // Visually update any children that are currently visible.
+  // This is the main performance optimization: collapsed subtrees are not touched.
+  propagateSelectionToVisibleChildren(li, select);
+
+  // Update the state of parent folders up the tree.
   updateParentFolders(li);
 }
+
 
 /**
  * Toggles selection of a single file.
@@ -374,6 +448,30 @@ export function updateAllFolderCheckboxes() {
   });
 }
 
+let heavyUpdateDebounceTimer = null;
+
+/**
+ * Performs all the heavy lifting after a selection change.
+ * This includes building the selected tree, updating dependency visuals,
+ * refreshing the XML preview, and recalculating the dependency graph layout.
+ */
+function performHeavyUpdates() {
+    buildAllSelectedTrees();
+    updateDependencyHighlights();
+    updateXMLPreview(true);
+    updateDependencyGraphSelection();
+    import('./state.js').then(module => module.saveStateToLocalStorage());
+}
+
+/**
+ * Schedules the heavy update operations, debouncing them to prevent
+ * excessive re-calculations during rapid UI interactions.
+ */
+function scheduleHeavyUpdates() {
+    clearTimeout(heavyUpdateDebounceTimer);
+    heavyUpdateDebounceTimer = setTimeout(performHeavyUpdates, 200); // 200ms delay
+}
+
 /**
  * Handles file and folder selection and collapse/expand using event delegation
  * on the file list container.
@@ -405,9 +503,7 @@ export function handleFileSelection(event) {
   }
   // Priority 2: Handle clicks on the folder row for collapsing
   else if (target.closest('.folder-header')) {
-    import('./fileTreeRenderer.js').then(module => {
-      module.toggleFolderCollapse(li);
-    });
+    toggleFolderCollapse(li);
   }
   // Priority 3: Handle clicks on the file row for selection
   else if (target.closest('.file-header') && li.getAttribute('data-text-file') === 'true') {
@@ -419,10 +515,7 @@ export function handleFileSelection(event) {
   }
 
   if (selectionChanged) {
-    buildAllSelectedTrees();
-    updateDependencyHighlights();
-    updateXMLPreview(true);
-    updateDependencyGraphSelection();
-    import('./state.js').then(module => module.saveStateToLocalStorage());
+    // Instead of running updates immediately, schedule them.
+    scheduleHeavyUpdates();
   }
 }

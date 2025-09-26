@@ -71,6 +71,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load saved state from IndexedDB/localStorage.
   await loadStateFromLocalStorage();
 
+  // Restore the state of the collapsible XML preview section.
+  const xmlPreviewDetails = document.getElementById('xml-preview-details');
+  if (xmlPreviewDetails) {
+    const isXmlPreviewOpen = localStorage.getItem('xmlPreviewOpen') === 'true';
+    if (isXmlPreviewOpen) {
+      xmlPreviewDetails.open = true;
+    }
+    // Save the state whenever the user toggles the section.
+    xmlPreviewDetails.addEventListener('toggle', (event) => {
+      localStorage.setItem('xmlPreviewOpen', event.target.open);
+    });
+  }
+
   // Initialize UI elements with saved state.
   const endpointInput = document.getElementById('endpoint-url');
   if (state.baseEndpoint) {

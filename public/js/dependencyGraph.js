@@ -1,8 +1,9 @@
 // Manages the dependency graph visualization using D3.
-// A force simulation is run headlessly for a short period to generate a static, organic layout.
+// A force simulation is run headlessly in a Web Worker to generate a static, organic layout without blocking the UI.
 
 import { state } from './state.js';
 import { getSelectedPaths } from './fileSelectionManager.js';
+import { debounce } from './utils.js';
 
 let svg;
 let container;
@@ -14,12 +15,154 @@ let baseGraphData = {
   links: []         // All links from dependency analysis
 };
 
+let graphWorker; // The single web worker for graph layout
+
+/**
+ * Initializes the web worker for graph layout calculations.
+ */
+function initGraphWorker() {
+  if (window.Worker) {
+    graphWorker = new Worker('js/graphWorker.js');
+    graphWorker.onmessage = function(event) {
+      const { nodes: layoutNodes } = event.data;
+      const nodeMap = new Map(layoutNodes.map(n => [n.id, n]));
+      // Reconstruct link objects with references to the new node objects
+      const links = baseGraphData.links.map(link => {
+        const sourceNode = nodeMap.get(link.source);
+        const targetNode = nodeMap.get(link.target);
+        if (!sourceNode || !targetNode) return null;
+        return { source: sourceNode, target: targetNode };
+      }).filter(Boolean);
+      renderGraph(layoutNodes, links);
+    };
+    graphWorker.onerror = function(error) {
+      console.error("Graph worker error:", error);
+    };
+  } else {
+    console.error("Web Workers are not supported in this browser.");
+  }
+}
+
+/**
+ * Renders the graph in the DOM using D3.
+ * This function contains the D3 DOM manipulation logic.
+ * @param {Array} nodes - Nodes with calculated positions from the worker.
+ * @param {Array} links - Links with resolved source/target objects.
+ */
+function renderGraph(nodes, links) {
+  if (!svg) return; // Guard against rendering if SVG is not ready
+  // Gather selected paths from all directories to determine node/link styles
+  const selectedPaths = new Set();
+  state.directories.forEach(dir => {
+    getSelectedPaths(dir.selectedTree).forEach(path => {
+      selectedPaths.add(path);
+    });
+  });
+  // Determine the set of dependencies from the selected files.
+  const dependencyPaths = new Set();
+  state.directories.forEach(dir => {
+    if (!dir.dependencyGraph) return;
+    selectedPaths.forEach(selectedPath => {
+      if (dir.dependencyGraph[selectedPath]) {
+        dir.dependencyGraph[selectedPath].forEach(depPath => {
+          if (!selectedPaths.has(depPath)) {
+            dependencyPaths.add(depPath);
+          }
+        });
+      }
+    });
+  });
+  // Add visual properties to nodes and links based on current selection state
+  nodes.forEach(node => {
+    node.val = 10;
+    node.selected = selectedPaths.has(node.id);
+    node.isDep = dependencyPaths.has(node.id);
+    node.color = node.selected ? '#007aff' : node.isDep ? '#34c759' : '#a0a0a0';
+  });
+  links.forEach(link => {
+    const sourceSelected = link.source.selected;
+    const targetSelected = link.target.selected;
+    const targetIsDependency = link.target.isDep;
+    let color = 'rgba(160, 160, 160, 0.5)'; // default
+    if (sourceSelected && targetSelected) {
+      color = '#007aff';
+    } else if (sourceSelected && targetIsDependency) {
+      color = '#34c759';
+    }
+    link.color = color;
+  });
+  // Update links in DOM
+  link = container.selectAll('line')
+    .data(links, d => `${d.source.id} -> ${d.target.id}`);
+  link.exit().remove();
+  link.enter().append('line')
+    .attr('stroke-width', 1)
+    .merge(link)
+    .attr('stroke', d => d.color)
+    .attr('x1', d => d.source.x)
+    .attr('y1', d => d.source.y)
+    .attr('x2', d => d.target.x)
+    .attr('y2', d => d.target.y);
+  // Update nodes in DOM
+  node = container.selectAll('g.node')
+    .data(nodes, d => d.id);
+  node.exit().remove();
+  const nodeEnter = node.enter()
+    .append('g')
+    .attr('class', 'node')
+    .on('mouseover', function() {
+      d3.select(this).style('cursor', 'pointer');
+    })
+    .on('mouseout', function() {
+      d3.select(this).style('cursor', 'default');
+    })
+    .on('click', function(event, d) {
+      if (!d) return;
+      const filePath = d.id;
+      // Escape double quotes in path for the query selector.
+      const escapedPath = filePath.replace(/"/g, '\\"');
+      const fileLi = document.querySelector(`li[data-file="${escapedPath}"]`);
+      if (fileLi) {
+        const checkbox = fileLi.querySelector('.file-checkbox');
+        if (checkbox && !checkbox.disabled) {
+          checkbox.click();
+        }
+      }
+    });
+  // Append circle and text to entering nodes
+  const radiusScale = d => d.val * 0.4;
+  nodeEnter.append('circle')
+    .attr('r', radiusScale);
+  nodeEnter.append('text')
+    .attr('dy', '0.35em') // Baseline adjustment
+    .attr('text-anchor', 'middle')
+    .attr('fill', 'rgba(240, 240, 240, 0.9)')
+    .attr('font-family', 'Sans-Serif')
+    .attr('font-size', '12px'); // Initial size, updated on zoom
+  // Merge enter and update selections
+  const nodeUpdate = nodeEnter.merge(node);
+  // Update positions for all nodes
+  nodeUpdate.attr('transform', d => `translate(${d.x}, ${d.y})`);
+  // Update circle appearance for all nodes
+  nodeUpdate.select('circle')
+    .attr('r', radiusScale)
+    .attr('fill', d => d.color);
+  // Update text for all nodes
+  nodeUpdate.select('text')
+    .text(d => d.name)
+    .attr('y', d => -radiusScale(d) - 5);
+  // Re-select all text elements for zoom handling
+  textSel = container.selectAll('g.node text');
+}
+
 /**
  * Initializes the dependency graph viewer using D3.
  */
 export function initDependencyGraph() {
   const graphElement = document.getElementById('graph');
   if (!graphElement) return;
+
+  initGraphWorker(); // Initialize the worker
 
   // Clear any existing content
   d3.select(graphElement).selectAll('*').remove();
@@ -41,8 +184,8 @@ export function initDependencyGraph() {
   container = svg.append('g')
     .attr('class', 'graph-container');
 
-  // Handle window resize
-  window.addEventListener('resize', () => {
+  // Handle window resize with debouncing
+  const debouncedResizeUpdate = debounce(() => {
     if (!graphElement) return;
     const { width, height } = graphElement.getBoundingClientRect();
     if (width > 0 && height > 0) {
@@ -50,7 +193,8 @@ export function initDependencyGraph() {
       // Recalculate layout on resize
       updateDependencyGraphSelection();
     }
-  });
+  }, 250);
+  window.addEventListener('resize', debouncedResizeUpdate);
 
   // Zoom handler
   function zoomed(event) {
@@ -107,164 +251,39 @@ export function updateDependencyGraph() {
 }
 
 /**
- * Updates the graph visualization based on file selections and recalculates layout.
+ * Updates the graph visualization based on file selections by offloading layout calculation.
  */
 export function updateDependencyGraphSelection() {
   if (!svg) {
     updateDependencyGraph();
     return;
   }
+  if (!graphWorker) {
+    console.error("Graph worker has not been initialized.");
+    return;
+  }
   const graphElement = document.getElementById('graph');
   const { width, height } = graphElement.getBoundingClientRect();
-  if (width > 0 && height > 0) {
-    svg.attr('width', width).attr('height', height);
-  } else {
+  if (width <= 0 || height <= 0) {
     return; // Cannot draw if element has no size
   }
 
-  // Gather selected paths from all directories
-  const selectedPaths = new Set();
-  state.directories.forEach(dir => {
-    getSelectedPaths(dir.selectedTree).forEach(path => {
-      selectedPaths.add(path);
-    });
-  });
-
-  // Determine the set of dependencies from the selected files.
-  const dependencyPaths = new Set();
-  state.directories.forEach(dir => {
-    if (!dir.dependencyGraph) return;
-    selectedPaths.forEach(selectedPath => {
-      if (dir.dependencyGraph[selectedPath]) {
-        dir.dependencyGraph[selectedPath].forEach(depPath => {
-          if (!selectedPaths.has(depPath)) {
-            dependencyPaths.add(depPath);
-          }
-        });
-      }
-    });
-  });
-
   // Prepare nodes for simulation
   const nodes = Array.from(baseGraphData.nodes.values()).map(n => ({ ...n }));
-  nodes.sort((a, b) => a.id.localeCompare(b.id)); // Sort for deterministic initial layout
+  nodes.sort((a, b) => a.id.localeCompare(b.id)); // For deterministic layout
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
-  // Prepare links for simulation with resolved source/target objects
-  const links = baseGraphData.links.map(link => {
-    const sourceNode = nodeMap.get(link.source);
-    const targetNode = nodeMap.get(link.target);
-    if (!sourceNode || !targetNode) return null;
-    return { source: sourceNode, target: targetNode };
-  }).filter(Boolean); // Filter out any null links
+  // Prepare links for simulation with string IDs
+  const linksForWorker = baseGraphData.links.map(link => {
+    if (!nodeMap.has(link.source) || !nodeMap.has(link.target)) return null;
+    return { source: link.source, target: link.target };
+  }).filter(Boolean);
 
-  // Create and run the force simulation to calculate node positions
-  const simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id(d => d.id).distance(80))
-    .force("charge", d3.forceManyBody().strength(-120))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .stop();
-
-  // Run the simulation headlessly for a number of iterations to get a stable layout
-  const numTicks = 300;
-  for (let i = 0; i < numTicks; ++i) {
-    simulation.tick();
-  }
-
-  // Now that simulation is complete, add visual properties to nodes and links
-  nodes.forEach(node => {
-    node.val = 10;
-    node.selected = selectedPaths.has(node.id);
-    node.isDep = dependencyPaths.has(node.id);
-    node.color = node.selected ? '#007aff' : node.isDep ? '#34c759' : '#a0a0a0';
+  // Offload the heavy computation to the web worker
+  graphWorker.postMessage({
+    nodes,
+    links: linksForWorker,
+    width,
+    height,
   });
-
-  links.forEach(link => {
-    const sourceSelected = link.source.selected;
-    const targetSelected = link.target.selected;
-    const targetIsDependency = link.target.isDep;
-    let color = 'rgba(160, 160, 160, 0.5)'; // default
-
-    if (sourceSelected && targetSelected) {
-      color = '#007aff';
-    } else if (sourceSelected && targetIsDependency) {
-      color = '#34c759';
-    }
-    link.color = color;
-  });
-
-  // Update links in DOM
-  link = container.selectAll('line')
-    .data(links, d => `${d.source.id} -> ${d.target.id}`);
-
-  link.exit().remove();
-
-  link.enter().append('line')
-    .attr('stroke-width', 1)
-    .merge(link)
-    .attr('stroke', d => d.color)
-    .attr('x1', d => d.source.x)
-    .attr('y1', d => d.source.y)
-    .attr('x2', d => d.target.x)
-    .attr('y2', d => d.target.y);
-
-  // Update nodes in DOM
-  node = container.selectAll('g.node')
-    .data(nodes, d => d.id);
-
-  node.exit().remove();
-
-  const nodeEnter = node.enter()
-    .append('g')
-    .attr('class', 'node')
-    .on('mouseover', function() {
-      d3.select(this).style('cursor', 'pointer');
-    })
-    .on('mouseout', function() {
-      d3.select(this).style('cursor', 'default');
-    })
-    .on('click', function(event, d) {
-      if (!d) return;
-      const filePath = d.id;
-      // Escape double quotes in path for the query selector.
-      const escapedPath = filePath.replace(/"/g, '\\"');
-      const fileLi = document.querySelector(`li[data-file="${escapedPath}"]`);
-      if (fileLi) {
-        const checkbox = fileLi.querySelector('.file-checkbox');
-        if (checkbox && !checkbox.disabled) {
-          checkbox.click();
-        }
-      }
-    });
-
-  // Append circle and text to entering nodes
-  const radiusScale = d => d.val * 0.4;
-  nodeEnter.append('circle')
-    .attr('r', radiusScale);
-
-  nodeEnter.append('text')
-    .attr('dy', '0.35em') // Baseline adjustment
-    .attr('text-anchor', 'middle')
-    .attr('fill', 'rgba(240, 240, 240, 0.9)')
-    .attr('font-family', 'Sans-Serif')
-    .attr('font-size', '12px'); // Initial size, updated on zoom
-
-  // Merge enter and update selections
-  const nodeUpdate = nodeEnter.merge(node);
-
-  // Update positions for all nodes
-  nodeUpdate.attr('transform', d => `translate(${d.x}, ${d.y})`);
-
-  // Update circle appearance for all nodes
-  nodeUpdate.select('circle')
-    .attr('r', radiusScale)
-    .attr('fill', d => d.color);
-
-  // Update text for all nodes
-  nodeUpdate.select('text')
-    .text(d => d.name)
-    .attr('y', d => -radiusScale(d) - 5);
-
-  // Re-select all text elements for zoom handling
-  textSel = container.selectAll('g.node text');
 }

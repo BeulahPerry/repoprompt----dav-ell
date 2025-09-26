@@ -83,30 +83,6 @@ export function renderFileExplorer() {
 }
 
 /**
- * Toggles the collapse state of a folder within its specific directory.
- * @param {HTMLElement} li - The folder li element.
- */
-export function toggleFolderCollapse(li) {
-  const dirId = li.getAttribute('data-dir-id');
-  const dir = state.directories.find(d => String(d.id) === dirId);
-  if (!dir) return;
-
-  const folderPath = li.getAttribute('data-folder');
-  const isCollapsed = li.classList.contains('collapsed');
-
-  if (isCollapsed) {
-    li.classList.remove('collapsed');
-    dir.collapsedFolders.delete(folderPath);
-  } else {
-    li.classList.add('collapsed');
-    dir.collapsedFolders.add(folderPath);
-  }
-  import('./state.js').then(module => {
-    module.saveStateToLocalStorage();
-  });
-}
-
-/**
  * Recursively formats a file tree object into a string with branch symbols.
  * @param {Object} tree - The file tree object.
  * @param {string} prefix - The current prefix for formatting.

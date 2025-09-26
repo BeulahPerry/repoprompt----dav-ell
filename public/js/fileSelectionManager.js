@@ -13,6 +13,11 @@ function updateDependencyHighlights() {
   // Clear all existing dependency highlights first.
   document.querySelectorAll('li.dependency').forEach(li => {
     li.classList.remove('dependency');
+    const indicator = li.querySelector('.dependency-indicator');
+    if (indicator) {
+      indicator.textContent = '';
+      indicator.title = '';
+    }
   });
 
   // Gather all unique paths of selected files across all directories.
@@ -23,8 +28,8 @@ function updateDependencyHighlights() {
     });
   });
 
-  // Determine the set of dependencies from the selected files.
-  const dependencyPaths = new Set();
+  // Determine the map of dependencies: Map<dependencyPath, Set<importerPath>>
+  const dependencyMap = new Map();
   state.directories.forEach(dir => {
     // Check if the directory has a dependency graph.
     if (!dir.dependencyGraph) return;
@@ -35,7 +40,10 @@ function updateDependencyHighlights() {
         dir.dependencyGraph[selectedPath].forEach(depPath => {
           // A file is a dependency if it's not also directly selected by the user.
           if (!selectedPaths.has(depPath)) {
-            dependencyPaths.add(depPath);
+            if (!dependencyMap.has(depPath)) {
+              dependencyMap.set(depPath, new Set());
+            }
+            dependencyMap.get(depPath).add(selectedPath);
           }
         });
       }
@@ -43,15 +51,29 @@ function updateDependencyHighlights() {
   });
 
   // Apply the 'dependency' class to the corresponding file elements in the DOM.
-  dependencyPaths.forEach(path => {
+  dependencyMap.forEach((importers, depPath) => {
     // Escape double quotes in path for the query selector.
-    const escapedPath = path.replace(/"/g, '\\"');
+    const escapedPath = depPath.replace(/"/g, '\\"');
     const fileLi = document.querySelector(`li[data-file="${escapedPath}"]`);
     if (fileLi) {
       fileLi.classList.add('dependency');
+      const indicator = fileLi.querySelector('.dependency-indicator');
+      if (indicator) {
+        const importersArray = Array.from(importers);
+        const importerNames = importersArray.map(p => p.split('/').pop());
+        const firstImporterName = importerNames[0];
+
+        indicator.textContent = firstImporterName;
+        indicator.title = `Imported by: ${importerNames.join(', ')}`;
+
+        if (importersArray.length > 1) {
+          indicator.textContent += `, ...`;
+        }
+      }
     }
   });
 }
+
 
 /**
  * Applies saved file selections to the file tree in the DOM for all directories.

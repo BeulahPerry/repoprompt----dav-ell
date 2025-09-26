@@ -160,6 +160,10 @@ header {
   font-weight: 500;
   margin-left: 8px;
   flex-shrink: 0;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .file-explorer li.dependency .dependency-indicator {

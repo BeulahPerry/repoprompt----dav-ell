@@ -19,6 +19,9 @@ function updateDependencyHighlights() {
       indicator.title = '';
     }
   });
+  document.querySelectorAll('li[data-folder].has-dependency').forEach(li => {
+    li.classList.remove('has-dependency');
+  });
 
   // Gather all unique paths of selected files across all directories.
   const selectedPaths = new Set();
@@ -69,6 +72,12 @@ function updateDependencyHighlights() {
         if (importersArray.length > 1) {
           indicator.textContent += `, ...`;
         }
+      }
+      // Traverse up to highlight parent folders
+      let parentFolderLi = fileLi.parentElement.closest('li[data-folder]');
+      while (parentFolderLi) {
+        parentFolderLi.classList.add('has-dependency');
+        parentFolderLi = parentFolderLi.parentElement.closest('li[data-folder]');
       }
     }
   });

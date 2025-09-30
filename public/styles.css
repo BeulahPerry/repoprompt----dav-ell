@@ -154,6 +154,14 @@ header {
   background-color: rgba(52, 199, 89, 0.25);
 }
 
+.file-explorer li[data-folder].has-dependency > .folder-header {
+  background-color: rgba(52, 199, 89, 0.1);
+}
+
+.file-explorer li[data-folder].has-dependency > .folder-header:hover {
+  background-color: rgba(52, 199, 89, 0.2);
+}
+
 .dependency-indicator {
   display: none;
   font-size: 0.8rem;

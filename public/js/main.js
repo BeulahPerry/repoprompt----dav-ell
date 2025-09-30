@@ -12,6 +12,7 @@ import { initPromptModal } from './promptModal.js';
 import { initWhitelistModal } from './whitelist.js';
 import { handleZipUpload, handleFolderUpload } from './uploader.js';
 import { initDependencyGraph, updateDependencyGraph } from './dependencyGraph.js';
+import { searchFileTree } from './search.js';
 
 /**
  * Renders the list of directories in the UI with remove buttons.
@@ -123,13 +124,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('user-instructions').addEventListener('input', debouncedUpdate);
   document.getElementById('file-list').addEventListener('click', handleFileSelection);
-  
+
+  // File search functionality
+  const searchInput = document.getElementById('file-search-input');
+  const clearSearchBtn = document.getElementById('clear-search');
+
+  const performSearch = debounce(() => {
+    const searchTerm = searchInput.value.trim();
+
+    if (searchTerm) {
+      // Show clear button
+      clearSearchBtn.style.display = 'flex';
+
+      // Perform search and get filtered trees
+      const filteredTrees = searchFileTree(state.directories, searchTerm);
+
+      // Render with filtered results
+      renderFileExplorer(filteredTrees, searchTerm);
+    } else {
+      // Hide clear button and show all files
+      clearSearchBtn.style.display = 'none';
+      renderFileExplorer();
+    }
+  }, 200);
+
+  searchInput.addEventListener('input', performSearch);
+
+  clearSearchBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    clearSearchBtn.style.display = 'none';
+    renderFileExplorer();
+  });
+
   // Copy XML event handler with Clipboard API fallback.
   document.getElementById('copy-btn').addEventListener('click', async () => {
     await updateXMLPreview(true);
     const xmlText = document.getElementById('xml-output').textContent;
     const feedbackElement = document.getElementById('copy-feedback');
-    
+
     const tokenCount = estimateTokens(xmlText);
     const copyMessage = `Copied ~${tokenCount.toLocaleString()} tokens!`;
 
@@ -151,7 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.body.appendChild(tempTextArea);
       tempTextArea.focus();
       tempTextArea.select();
-      
+
       try {
         const successful = document.execCommand('copy');
         if (successful) {
@@ -245,20 +277,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!state.currentDirectoryId) return;
     const dir = state.directories.find(d => d.id === state.currentDirectoryId);
     if (dir && dir.type === 'path') { // Only allow update for path type
-        const newPath = document.getElementById('directory-path').value.trim();
-        if (newPath && newPath !== dir.path) {
-            dir.path = newPath;
-            await generateFileExplorer(state.currentDirectoryId);
-            renderDirectoriesList(); // Re-render list to show new path
-            saveStateToLocalStorage();
-        } else if (newPath === dir.path) {
-             await generateFileExplorer(state.currentDirectoryId); // Just refresh if path is same
-        }
+      const newPath = document.getElementById('directory-path').value.trim();
+      if (newPath && newPath !== dir.path) {
+        dir.path = newPath;
+        await generateFileExplorer(state.currentDirectoryId);
+        renderDirectoriesList(); // Re-render list to show new path
+        saveStateToLocalStorage();
+      } else if (newPath === dir.path) {
+        await generateFileExplorer(state.currentDirectoryId); // Just refresh if path is same
+      }
     } else {
-        console.log("Update button is for path directories only or current directory not found.");
+      console.log("Update button is for path directories only or current directory not found.");
     }
   });
-  
+
   // Resizable file explorer
   const fileExplorer = document.querySelector('.file-explorer');
   const resizeHandle = document.querySelector('.resize-handle');

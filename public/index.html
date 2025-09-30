@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,11 +15,24 @@
   <link rel="stylesheet" href="styles/modal.css">
   <link rel="stylesheet" href="styles/components.css">
 </head>
+
 <body>
   <aside class="file-explorer">
     <div class="file-explorer-header">
       <h2>File Explorer</h2>
       <button id="manage-whitelist-btn">Whitelist</button>
+    </div>
+
+    <div class="search-section">
+      <div class="search-input-wrapper">
+        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input type="text" id="file-search-input" placeholder="Search files..." />
+        <button id="clear-search" class="clear-search-btn" style="display: none;">×</button>
+      </div>
     </div>
 
     <div class="directories-section">
@@ -75,23 +89,35 @@
           <div class="dependency-graph-header">
             <h2>Dependency Graph</h2>
             <div class="graph-controls">
-            	<div id="graph-feedback" style="display: none;">
-            	  <div class="spinner"></div>
-          	  </div>
-          	  <button id="graph-fullscreen-btn" class="graph-control-btn" title="Toggle Fullscreen">
-          		<svg id="expand-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m-3 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-          		<svg id="collapse-icon" style="display: none;" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 15v6h-6M3 9V3h6"/></svg>
-          	  </button>
-          	</div>
+              <div id="graph-feedback" style="display: none;">
+                <div class="spinner"></div>
+              </div>
+              <button id="graph-fullscreen-btn" class="graph-control-btn" title="Toggle Fullscreen">
+                <svg id="expand-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path
+                    d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m-3 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                </svg>
+                <svg id="collapse-icon" style="display: none;" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <path d="M15 3h6v6M9 21H3v-6M21 15v6h-6M3 9V3h6" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div id="graph"></div>
         </section>
-      	<section class="xml-preview">
+        <section class="xml-preview">
           <details id="xml-preview-details">
             <summary>
               <div class="xml-preview-header">
                 <div class="summary-title">
-                  <svg class="preview-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  <svg class="preview-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
                   <h2>Prompt Preview</h2>
                   <span id="token-count-preview" class="token-count"></span>
                 </div>
@@ -106,7 +132,7 @@
   </div>
 
 
-    <div id="prompt-modal" class="modal">
+  <div id="prompt-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
         <h2>Manage Prompts</h2>
@@ -131,7 +157,7 @@
     </div>
   </div>
 
-    <div id="whitelist-modal" class="modal">
+  <div id="whitelist-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
         <h2>Manage Whitelist</h2>
@@ -154,7 +180,7 @@
     </div>
   </div>
 
-    <div id="directory-section" style="display:none;">
+  <div id="directory-section" style="display:none;">
     <label for="directory-path">Directory Path:</label>
     <input type="text" id="directory-path" placeholder="Enter absolute path (e.g., /home/user/project)">
     <button id="update-directory">Update</button>
@@ -164,4 +190,5 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
+
 </html>

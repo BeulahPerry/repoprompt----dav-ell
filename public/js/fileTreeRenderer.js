@@ -3,6 +3,7 @@
 import { state } from './state.js';
 import { applySavedFileSelections } from './fileSelectionManager.js';
 import { sortTreeEntries, isTextFile } from './utils.js';
+import { highlightMatches } from './search.js';
 
 /**
  * Recursively renders the file tree into an HTML unordered list with checkboxes for a specific directory.
@@ -12,11 +13,12 @@ import { sortTreeEntries, isTextFile } from './utils.js';
  * @param {string} dirId - The unique identifier of the directory.
  * @param {string} parentPath - The parent path.
  * @param {boolean} isRoot - Flag indicating whether to wrap in <ul> or not.
+ * @param {string} searchTerm - Optional search term for highlighting matches.
  * @returns {string} - The HTML string representing the file tree.
  */
-export function renderFileTree(tree, selectedTree, collapsedFolders, dirId, parentPath = "", isRoot = false) {
+export function renderFileTree(tree, selectedTree, collapsedFolders, dirId, parentPath = "", isRoot = false, searchTerm = "") {
   let html = isRoot ? "" : '<ul>';
-  
+
   const entries = Object.entries(tree).map(([name, node]) => ({
     name,
     type: node.type,
@@ -29,16 +31,18 @@ export function renderFileTree(tree, selectedTree, collapsedFolders, dirId, pare
     if (entry.type === "file") {
       const isText = isTextFile(entry.path);
       const isSelected = !!selectedTree[entry.name];
+      const displayName = searchTerm ? highlightMatches(entry.name, searchTerm) : entry.name;
 
       html += `<li data-file="${entry.path}" data-text-file="${isText}" data-dir-id="${dirId}" title="${entry.path}">`;
       html += `<div class="file-header">`;
       html += `<input type="checkbox" class="file-checkbox" ${isText ? '' : 'disabled'} ${isSelected ? 'checked' : ''}>`;
-      html += `<span class="file-name">${entry.name}</span>`;
+      html += `<span class="file-name">${displayName}</span>`;
       html += `<span class="dependency-indicator"></span>`;
       html += `</div></li>`;
     } else if (entry.type === "folder") {
       const folderPath = entry.path;
-      const isCollapsed = collapsedFolders.has(folderPath);
+      // When searching, keep folders expanded to show matching files
+      const isCollapsed = searchTerm ? false : collapsedFolders.has(folderPath);
       html += `<li data-folder="${folderPath}" data-dir-id="${dirId}" class="${isCollapsed ? 'collapsed' : ''}" title="${folderPath}">`;
       html += `<div class="folder-header">`;
       html += `<input type="checkbox" class="folder-checkbox">`;
@@ -46,7 +50,7 @@ export function renderFileTree(tree, selectedTree, collapsedFolders, dirId, pare
       html += `<span class="folder-name">${entry.name}</span>`;
       html += `</div>`;
       const childSelectedTree = selectedTree[entry.name]?.children || {};
-      html += renderFileTree(entry.children, childSelectedTree, collapsedFolders, dirId, folderPath, false);
+      html += renderFileTree(entry.children, childSelectedTree, collapsedFolders, dirId, folderPath, false, searchTerm);
       html += `</li>`;
     }
   }
@@ -56,14 +60,26 @@ export function renderFileTree(tree, selectedTree, collapsedFolders, dirId, pare
 
 /**
  * Renders the file explorer with all directories as top-level expandable/collapsible folders.
+ * @param {Map|null} filteredTrees - Optional map of dirId to filtered tree (for search results).
+ * @param {string} searchTerm - Optional search term for highlighting matches.
  */
-export function renderFileExplorer() {
+export function renderFileExplorer(filteredTrees = null, searchTerm = "") {
   const fileListElement = document.getElementById('file-list');
   let html = '';
   state.directories.forEach(dir => {
     const dirName = dir.name || (dir.path ? dir.path.split('/').pop() : `dir-${dir.id}`);
     const dirIdentifier = dir.path || `dir-${dir.id}`;
-    const isCollapsed = dir.collapsedFolders.has(dirIdentifier);
+
+    // Use filtered tree if searching, otherwise use full tree
+    const treeToRender = filteredTrees ? filteredTrees.get(dir.id) : dir.tree;
+
+    // If searching and this directory has no matches, skip it entirely
+    if (filteredTrees && !treeToRender) {
+      return;
+    }
+
+    // When searching, keep directories expanded; otherwise use saved state
+    const isCollapsed = searchTerm ? false : dir.collapsedFolders.has(dirIdentifier);
     html += `<li data-folder="${dirIdentifier}" data-dir-id="${dir.id}" class="${isCollapsed ? 'collapsed' : ''}" title="${dirIdentifier}">`;
     html += `<div class="folder-header">`;
     html += `<input type="checkbox" class="folder-checkbox" ${dir.error ? 'disabled' : ''}>`;
@@ -72,11 +88,17 @@ export function renderFileExplorer() {
     html += `</div>`;
     if (dir.error) {
       html += `<ul><li class="error">Error: ${dir.error}</li></ul>`;
-    } else {
-      html += renderFileTree(dir.tree, dir.selectedTree, dir.collapsedFolders, dir.id, dirIdentifier, false);
+    } else if (treeToRender) {
+      html += renderFileTree(treeToRender, dir.selectedTree, dir.collapsedFolders, dir.id, dirIdentifier, false, searchTerm);
     }
     html += `</li>`;
   });
+
+  // Show a message if searching but no results
+  if (filteredTrees && html === '') {
+    html = '<li class="no-results">No files match your search</li>';
+  }
+
   fileListElement.innerHTML = html;
   applySavedFileSelections();
 }

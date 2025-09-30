@@ -11,6 +11,84 @@
   font-size: 1.2rem;
 }
 
+/* Search Section */
+.search-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+#file-search-input {
+  width: 100%;
+  padding: 8px 32px 8px 36px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#file-search-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+#file-search-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.clear-search-btn:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Search highlight styling */
+.search-highlight {
+  background-color: rgba(255, 204, 0, 0.4);
+  color: var(--text-primary);
+}
+
+/* No results message */
+.no-results {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 #file-list-container {
   flex-grow: 1;
   overflow-y: auto;
@@ -22,7 +100,8 @@
   padding-left: 12px;
 }
 
-.folder-header, .file-header {
+.folder-header,
+.file-header {
   display: flex;
   align-items: center;
   padding: 6px 8px;
@@ -31,34 +110,35 @@
   transition: background-color 0.15s ease, outline 0.15s ease;
 }
 
-.folder-header:hover, .file-header:hover {
+.folder-header:hover,
+.file-header:hover {
   background-color: var(--bg-tertiary);
 }
 
-.file-explorer li[data-file].selected > .file-header {
+.file-explorer li[data-file].selected>.file-header {
   outline: 1px solid var(--accent-primary);
   background-color: rgba(0, 122, 255, 0.1);
 }
 
-.file-explorer li[data-file].selected > .file-header:hover {
+.file-explorer li[data-file].selected>.file-header:hover {
   background-color: rgba(0, 122, 255, 0.2);
 }
 
 /* Dependency Highlighting */
-.file-explorer li[data-file].dependency > .file-header {
+.file-explorer li[data-file].dependency>.file-header {
   outline: 1px solid var(--dependency-color);
   background-color: rgba(52, 199, 89, 0.15);
 }
 
-.file-explorer li[data-file].dependency > .file-header:hover {
+.file-explorer li[data-file].dependency>.file-header:hover {
   background-color: rgba(52, 199, 89, 0.25);
 }
 
-.file-explorer li[data-folder].has-dependency > .folder-header {
+.file-explorer li[data-folder].has-dependency>.folder-header {
   background-color: rgba(52, 199, 89, 0.1);
 }
 
-.file-explorer li[data-folder].has-dependency > .folder-header:hover {
+.file-explorer li[data-folder].has-dependency>.folder-header:hover {
   background-color: rgba(52, 199, 89, 0.2);
 }
 
@@ -82,7 +162,7 @@
 
 /* --- COLLAPSE/EXPAND LOGIC --- */
 /* Rule to HIDE the nested list when collapsed */
-.file-explorer li.collapsed > ul {
+.file-explorer li.collapsed>ul {
   display: none;
 }
 
@@ -95,13 +175,15 @@
 }
 
 /* Rotated state for the toggle icon (collapsed, points right) */
-.collapsed > .folder-header .folder-toggle {
+.collapsed>.folder-header .folder-toggle {
   transform: rotate(0deg);
 }
+
 /* --- END COLLAPSE/EXPAND LOGIC --- */
 
 
-.folder-name, .file-name {
+.folder-name,
+.file-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -112,12 +194,14 @@
   color: var(--text-secondary);
   cursor: not-allowed;
 }
-.file-explorer li[data-text-file="false"] > .file-header {
+
+.file-explorer li[data-text-file="false"]>.file-header {
   pointer-events: none;
 }
 
 /* Explorer Checkboxes */
-.file-checkbox, .folder-checkbox {
+.file-checkbox,
+.folder-checkbox {
   margin-right: 8px;
 }
 
@@ -126,15 +210,18 @@
   padding: 16px;
   border-bottom: 1px solid var(--border-color);
 }
+
 .directories-section h3 {
   font-size: 1rem;
   margin-bottom: 12px;
 }
+
 .directories-list-wrapper {
   max-height: 120px;
   overflow-y: auto;
   margin-bottom: 12px;
 }
+
 .directory-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -150,6 +237,7 @@
   border-radius: 6px;
   margin-bottom: 8px;
 }
+
 .directory-item span {
   flex: 1;
   overflow: hidden;
@@ -158,6 +246,7 @@
   margin-right: 10px;
   font-size: 0.9rem;
 }
+
 .directory-item .btn-group {
   display: flex;
   gap: 5px;

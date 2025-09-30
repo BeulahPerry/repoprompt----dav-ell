@@ -249,21 +249,26 @@ fn analyze_python(
     let query_src = r#"
 ; Pattern 0: import foo
 (import_statement (dotted_name) @module)
-; Pattern 1: from foo.bar import ... and from .foo import ...
+; Pattern 1a: from foo.bar import ...
 (import_from_statement
-  module_name: [
-    (dotted_name) @module
-    (relative_import (dotted_name) . ) @module
-  ]
+  module_name: (dotted_name) @module
 )
-; Pattern 2: from . import foo
+; Pattern 1b: from .foo import ...
+(import_from_statement
+  module_name: (relative_import) @module
+)
+; Pattern 3: from . import foo[, bar, ...]
 (import_from_statement
   module_name: (relative_import) @dots
-  name: [
-    (dotted_name) @name
-    (aliased_import name: (dotted_name) @name)
-  ]
-  (#match? @dots "^\.+$")
+  import_from_names: (import_from_names
+    (import_from_name
+      (dotted_name) @name
+      (aliased_import
+        name: (choice (identifier) (dotted_name)) @name
+      )
+    )*
+  )
+  (#match? @dots "^\.+")
 )
 "#;
     let query = match Query::new(&language, query_src) {
@@ -303,7 +308,7 @@ fn analyze_python(
 
         while let Some(mat) = matches_iter.next() {
             match mat.pattern_index {
-                0 | 1 => { // import a.b, from a.b import c, from .a import c
+                0 | 1 | 2 => { // import a.b, from a.b import c, from .a import c
                     for cap in mat.captures {
                         if query.capture_names()[cap.index as usize] == "module" {
                             let module_str = &content[cap.node.byte_range()];
@@ -311,7 +316,7 @@ fn analyze_python(
                         }
                     }
                 },
-                2 => { // from . import a, from .. import b
+                3 => { // from . import a, from .. import b
                     let mut dots_opt = None;
                     let mut names = Vec::new();
                     for cap in mat.captures {
@@ -421,6 +426,44 @@ fn analyze_rust(
     }
 }
 
+/// Resolves a C++ include path against a set of search directories.
+fn resolve_cpp_path(
+    source_file: &Path,
+    include_str: &str,
+    is_quote_include: bool, // true for "...", false for <...>
+    search_paths: &[PathBuf],
+    root_path: &Path,
+) -> Option<String> {
+    let possible_exts = [
+        "", ".h", ".hpp", ".hxx", ".hh", ".c", ".cpp", ".cc",
+    ];
+
+    let mut dirs_to_search: Vec<PathBuf> = Vec::new();
+
+    // For #include "...", the directory of the current file is searched first.
+    if is_quote_include {
+        if let Some(parent_dir) = source_file.parent() {
+            dirs_to_search.push(parent_dir.to_path_buf());
+        }
+    }
+
+    // Add the provided search paths
+    dirs_to_search.extend(search_paths.iter().cloned());
+
+    for dir in dirs_to_search {
+        for ext in &possible_exts {
+            let path_with_ext = format!("{}{}", include_str, ext);
+            let candidate_path = dir.join(&path_with_ext).clean();
+
+            if candidate_path.is_file() && candidate_path.starts_with(root_path) {
+                return Some(candidate_path.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    None
+}
+
 /// Analyzes C/C++ files for dependencies.
 fn analyze_cpp(
     root_path: &Path,
@@ -433,7 +476,13 @@ fn analyze_cpp(
         warn!("Failed to set language for C++: {}. C++ dependency analysis will be skipped.", e);
         return;
     }
-    let query_src = r#"(preproc_include path: (string_literal (string_content) @header))"#;
+    let query_src = r#"
+(preproc_include
+  path: [
+    (string_literal) @path
+    (system_lib_string) @path
+  ]
+)"#;
     let query = match Query::new(&language, query_src) {
         Ok(q) => q,
         Err(e) => {
@@ -446,12 +495,22 @@ fn analyze_cpp(
         .filter(|file_path_str| {
             let path_buf = PathBuf::from(file_path_str);
             let ext = path_buf.extension().and_then(|s| s.to_str());
-            matches!(ext, Some("cpp" | "c" | "h" | "hpp" | "hxx"))
+            matches!(ext, Some("cpp" | "c" | "h" | "hpp" | "hxx" | "cc" | "hh"))
         })
         .collect();
 
     debug!("Found {} C++ files to scan for dependencies.", cpp_files.len());
     
+    // Build a list of common include paths to search.
+    // This is a heuristic since we don't have the build system's configuration.
+    let mut search_paths = vec![root_path.to_path_buf()];
+    for subdir in &["include", "src", "inc"] {
+        let potential_path = root_path.join(subdir);
+        if potential_path.is_dir() {
+            search_paths.push(potential_path);
+        }
+    }
+
     for file_path_str in cpp_files {
         let file_path = PathBuf::from(file_path_str);
         
@@ -467,33 +526,53 @@ fn analyze_cpp(
 
         let mut cursor = QueryCursor::new();
         let mut matches_iter = cursor.matches(&query, tree.root_node(), content.as_bytes());
-        let mut dependencies = Vec::new();
+        let mut dependencies = HashSet::new();
 
         while let Some(mat) = matches_iter.next() {
             for cap in mat.captures {
-                if query.capture_names()[cap.index as usize] != "header" {
+                if query.capture_names()[cap.index as usize] != "path" {
                     continue;
                 }
 
                 let path_node = cap.node;
-                let header_str = &content[path_node.byte_range()];
-                let clean_import = header_str.trim_matches('"').trim_matches('\'');
-                debug!("Found C++ include '{}' in '{}'", clean_import, file_path.display());
-                
-                if let Some(parent_dir) = file_path.parent() {
-                    let possible_exts = ["", ".h", ".hpp", ".hxx"];
-                    if let Some(resolved) = resolve_relative_path(parent_dir, clean_import, root_path, &possible_exts) {
-                        dependencies.push(resolved);
-                    }
+                let include_text = &content[path_node.byte_range()];
+
+                let (clean_import, is_quote_include) = if include_text.starts_with('"') {
+                    (include_text.trim_matches('"'), true)
+                } else if include_text.starts_with('<') {
+                    (include_text.trim_matches(|c| c == '<' || c == '>'), false)
+                } else {
+                    // This case should not be reached with the current query
+                    warn!("Unexpected include format in {}: {}", file_path.display(), include_text);
+                    continue;
+                };
+
+                // Skip empty include paths
+                if clean_import.is_empty() {
+                    continue;
+                }
+
+                debug!("Found C++ include '{}' ({}) in '{}'", clean_import, if is_quote_include { "quote" } else { "system" }, file_path.display());
+
+                if let Some(resolved) = resolve_cpp_path(
+                    &file_path,
+                    clean_import,
+                    is_quote_include,
+                    &search_paths,
+                    root_path,
+                ) {
+                    dependencies.insert(resolved);
                 }
             }
         }
 
         if !dependencies.is_empty() {
+            let mut sorted_deps: Vec<_> = dependencies.into_iter().collect();
+            sorted_deps.sort_by(|a, b| natord::compare(a, b));
             dependency_graph
                 .entry(file_path_str.clone())
                 .or_default()
-                .extend(dependencies);
+                .extend(sorted_deps);
         }
     }
 }

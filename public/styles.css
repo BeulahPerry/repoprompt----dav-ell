@@ -437,6 +437,13 @@ button#manage-whitelist-btn {
   gap: 8px;
 }
 
+.token-count {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-left: 12px;
+}
+
 .preview-toggle {
   color: var(--text-secondary);
   width: 16px;

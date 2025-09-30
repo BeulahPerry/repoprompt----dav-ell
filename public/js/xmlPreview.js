@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { formatTree } from './fileTreeRenderer.js';
 import { getFileNodes, fetchBatchFileContents } from './fileContent.js';
 import { getPromptsXML } from './prompts.js';
-import { getLanguage } from './utils.js';
+import { getLanguage, estimateTokens } from './utils.js';
 import { getUploadedFile } from './db.js';
 
 /**
@@ -26,7 +26,7 @@ export async function updateXMLPreview(forceFullUpdate = false) {
     }
   });
   if (!fileMapStr) {
-    fileMapStr = `<file_map>\n<!-- No directories or files selected -->\n</file_map>`;
+    fileMapStr = `<file_map>\n\n</file_map>`;
   }
 
   // File contents section: process file nodes from all selected trees
@@ -48,7 +48,7 @@ export async function updateXMLPreview(forceFullUpdate = false) {
     const uploadedContents = await Promise.all(uploadedFiles.map(async node => {
       const lang = getLanguage(node.path);
       const content = await getUploadedFile(node.dirId, node.path);
-      return `File: ${node.path}\n\`\`\`${lang}\n${content || "<!-- Content not found -->"}\n\`\`\`\n\n`;
+      return `File: ${node.path}\n\`\`\`${lang}\n${content || ""}\n\`\`\`\n\n`;
     }));
 
     // Fetch contents for server files in a batch request
@@ -59,14 +59,14 @@ export async function updateXMLPreview(forceFullUpdate = false) {
     fileContentsStr += uploadedContents.concat(serverContents).join('');
   } else {
     console.log('No files selected for content fetching');
-    fileContentsStr += `<!-- No file contents available -->\n`;
+    fileContentsStr += `\n`;
   }
   fileContentsStr += `</file_contents>`;
 
   // Prompts section
   let promptsStr = getPromptsXML();
   if (promptsStr === '') {
-    promptsStr = `<!-- No prompts selected -->\n`;
+    promptsStr = `\n`;
   }
 
   // User instructions section
@@ -74,6 +74,12 @@ export async function updateXMLPreview(forceFullUpdate = false) {
 
   const finalXML = `${fileMapStr}\n\n${fileContentsStr}\n\n${promptsStr}\n${userInstructionsStr}`;
   document.getElementById('xml-output').textContent = finalXML;
+
+  const tokenCount = estimateTokens(finalXML);
+  const tokenCountElement = document.getElementById('token-count-preview');
+  if (tokenCountElement) {
+    tokenCountElement.textContent = `(~${tokenCount.toLocaleString()} tokens)`;
+  }
   console.log('XML preview updated');
 
   // Update failed files list

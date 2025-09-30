@@ -2,7 +2,7 @@
 // A force simulation is run headlessly in a Web Worker to generate a static, organic layout without blocking the UI.
 
 import { state } from './state.js';
-import { getSelectedPaths } from './fileSelectionManager.js';
+import { getSelectedPaths } from './fileSelectionManager/selectedTreeBuilder.js';
 import { debounce } from './utils.js';
 
 let svg;

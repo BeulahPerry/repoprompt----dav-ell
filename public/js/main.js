@@ -1,7 +1,7 @@
 // Main entry point for the application. Initializes state, attaches event listeners, and wires up all modules.
 
 import { state, loadStateFromLocalStorage, saveStateToLocalStorage } from './state.js';
-import { debounce, collectFolderPaths } from './utils.js';
+import { debounce, collectFolderPaths, estimateTokens } from './utils.js';
 import { renderFileExplorer } from './fileTreeRenderer.js';
 import { handleFileSelection } from './fileSelectionManager.js';
 import { updateXMLPreview } from './xmlPreview.js';
@@ -130,9 +130,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const xmlText = document.getElementById('xml-output').textContent;
     const feedbackElement = document.getElementById('copy-feedback');
     
+    const tokenCount = estimateTokens(xmlText);
+    const copyMessage = `Copied ~${tokenCount.toLocaleString()} tokens!`;
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(xmlText)
         .then(() => {
+          feedbackElement.textContent = copyMessage;
           feedbackElement.classList.add('show');
           setTimeout(() => feedbackElement.classList.remove('show'), 1500);
         })
@@ -151,6 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const successful = document.execCommand('copy');
         if (successful) {
+          feedbackElement.textContent = copyMessage;
           feedbackElement.classList.add('show');
           setTimeout(() => feedbackElement.classList.remove('show'), 1500);
         } else {

@@ -128,3 +128,18 @@ export function collectFolderPaths(tree) {
   traverse(tree);
   return folderPaths;
 }
+
+/**
+ * Estimates the number of tokens in a given text.
+ * This uses a simple heuristic where 1 token is approximately 4 characters.
+ * This is a rough estimate and may not match the exact token count from a specific model's tokenizer.
+ * @param {string} text - The input text.
+ * @returns {number} - The estimated number of tokens.
+ */
+export function estimateTokens(text) {
+  if (!text) {
+    return 0;
+  }
+  // A common heuristic for token estimation.
+  return Math.ceil(text.length / 4);
+}

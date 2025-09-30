@@ -84,5 +84,5 @@
 
 #dependency-graph-section.fullscreen #graph {
   flex-grow: 1;
-  height: auto;
+  height: 100%;
 }

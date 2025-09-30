@@ -238,9 +238,10 @@ export function initDependencyGraph() {
       expandIcon.style.display = isFullscreen ? 'none' : 'block';
       collapseIcon.style.display = isFullscreen ? 'block' : 'none';
 
-      // The ResizeObserver will now handle the update.
-      // Calling performResizeUpdate directly from a timeout was creating a
-      // race condition and feedback loop with the observer.
+      // Trigger debounced resize update after a short delay to ensure layout reflow
+      setTimeout(() => {
+        debouncedResizeUpdate();
+      }, 100);
     });
   }
 

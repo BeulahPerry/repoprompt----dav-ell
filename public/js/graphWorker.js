@@ -19,7 +19,8 @@ self.onmessage = function(event) {
         .force("center", d3.forceCenter(width / 2, height / 2))
         .stop();
 
-    const numTicks = 300;
+
+    const numTicks = 300
     for (let i = 0; i < numTicks; ++i) {
         simulation.tick();
     }

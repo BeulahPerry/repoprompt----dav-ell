@@ -16,6 +16,31 @@ let baseGraphData = {
 };
 
 let graphWorker; // The single web worker for graph layout
+let graphFeedbackElement; // To hold the spinner element
+
+/**
+ * Shows the loading spinner in the dependency graph header.
+ */
+function showGraphFeedback() {
+    if (!graphFeedbackElement) {
+        graphFeedbackElement = document.getElementById('graph-feedback');
+    }
+    if (graphFeedbackElement) {
+        graphFeedbackElement.style.display = 'block';
+    }
+}
+
+/**
+ * Hides the loading spinner in the dependency graph header.
+ */
+function hideGraphFeedback() {
+    if (!graphFeedbackElement) {
+        graphFeedbackElement = document.getElementById('graph-feedback');
+    }
+    if (graphFeedbackElement) {
+        graphFeedbackElement.style.display = 'none';
+    }
+}
 
 /**
  * Initializes the web worker for graph layout calculations.
@@ -37,6 +62,7 @@ function initGraphWorker() {
     };
     graphWorker.onerror = function(error) {
       console.error("Graph worker error:", error);
+      hideGraphFeedback();
     };
   } else {
     console.error("Web Workers are not supported in this browser.");
@@ -153,6 +179,7 @@ function renderGraph(nodes, links) {
     .attr('y', d => -radiusScale(d) - 5);
   // Re-select all text elements for zoom handling
   textSel = container.selectAll('g.node text');
+  hideGraphFeedback();
 }
 
 /**
@@ -184,17 +211,26 @@ export function initDependencyGraph() {
   container = svg.append('g')
     .attr('class', 'graph-container');
 
-  // Handle window resize with debouncing
+  // Handle container resize with debouncing
   const debouncedResizeUpdate = debounce(() => {
     if (!graphElement) return;
-    const { width, height } = graphElement.getBoundingClientRect();
+    const width = graphElement.clientWidth;
+    const height = graphElement.clientHeight;
     if (width > 0 && height > 0) {
       svg.attr('width', width).attr('height', height);
       // Recalculate layout on resize
       updateDependencyGraphSelection();
     }
   }, 250);
-  window.addEventListener('resize', debouncedResizeUpdate);
+
+  // Using ResizeObserver is more robust for element resizes than 'window.resize'
+  if (window.ResizeObserver) {
+    const resizeObserver = new ResizeObserver(debouncedResizeUpdate);
+    resizeObserver.observe(graphElement);
+  } else {
+    // Fallback for older browsers
+    window.addEventListener('resize', debouncedResizeUpdate);
+  }
 
   // Zoom handler
   function zoomed(event) {
@@ -273,10 +309,13 @@ export function updateDependencyGraphSelection() {
     return;
   }
   const graphElement = document.getElementById('graph');
-  const { width, height } = graphElement.getBoundingClientRect();
+  const width = graphElement.clientWidth;
+  const height = graphElement.clientHeight;
   if (width <= 0 || height <= 0) {
     return; // Cannot draw if element has no size
   }
+
+  showGraphFeedback();
 
   // Prepare nodes for simulation
   const nodes = Array.from(baseGraphData.nodes.values()).map(n => ({ ...n }));

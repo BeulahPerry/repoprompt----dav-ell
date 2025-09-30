@@ -514,6 +514,37 @@ button#manage-whitelist-btn {
   margin-bottom: 0;
 }
 
+.graph-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.graph-control-btn {
+  /* Override default button styles */
+  background-color: transparent;
+  padding: 4px;
+  line-height: 0;
+
+  /* Custom styles */
+  border: none;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.graph-control-btn:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.graph-control-btn:active {
+  transform: scale(0.95);
+}
+
 .spinner {
   width: 18px;
   height: 18px;
@@ -537,6 +568,23 @@ button#manage-whitelist-btn {
   border-radius: var(--border-radius);
 }
 
+/* Fullscreen state */
+.dependency-graph.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2000;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dependency-graph.fullscreen #graph {
+  flex-grow: 1;
+  height: auto;
+}
 
 /* --- MODAL STYLES --- */
 .modal {

@@ -59,7 +59,7 @@ export function renderFileTree(tree, selectedTree, collapsedFolders, dirId, pare
  */
 export function renderFileExplorer() {
   const fileListElement = document.getElementById('file-list');
-  let html = '<ul>';
+  let html = '';
   state.directories.forEach(dir => {
     const dirName = dir.name || (dir.path ? dir.path.split('/').pop() : `dir-${dir.id}`);
     const dirIdentifier = dir.path || `dir-${dir.id}`;
@@ -77,7 +77,6 @@ export function renderFileExplorer() {
     }
     html += `</li>`;
   });
-  html += '</ul>';
   fileListElement.innerHTML = html;
   applySavedFileSelections();
 }

@@ -110,7 +110,7 @@ export function buildAllSelectedTrees() {
 
   state.directories.forEach(dir => {
     const dirIdStr = String(dir.id);
-    const topLi = fileList.querySelector(`li[data-dir-id="${dirIdStr}"]`);
+    const topLi = fileList.querySelector(`:scope > li[data-dir-id="${dirIdStr}"]`);
     if (topLi) {
       const ul = topLi.querySelector(':scope > ul');
       dir.selectedTree = ul ? buildSelectedTreeForDirectory(ul, dir.path, dir.id) : {};

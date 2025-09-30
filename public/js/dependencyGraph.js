@@ -194,11 +194,11 @@ export function initDependencyGraph() {
   // Clear any existing content
   d3.select(graphElement).selectAll('*').remove();
 
-  // Create SVG
+  // Create SVG, sized to fill its container via CSS.
   svg = d3.select(graphElement)
     .append('svg')
-    .attr('width', graphElement.clientWidth)
-    .attr('height', graphElement.clientHeight)
+    .attr('width', '100%')
+    .attr('height', '100%')
     .style('background-color', 'rgba(0,0,0,0)'); // Transparent background
 
   // Add zoom behavior
@@ -211,17 +211,41 @@ export function initDependencyGraph() {
   container = svg.append('g')
     .attr('class', 'graph-container');
 
-  // Handle container resize with debouncing
-  const debouncedResizeUpdate = debounce(() => {
+  // A function to handle the resize logic
+  const performResizeUpdate = () => {
     if (!graphElement) return;
     const width = graphElement.clientWidth;
     const height = graphElement.clientHeight;
     if (width > 0 && height > 0) {
-      svg.attr('width', width).attr('height', height);
-      // Recalculate layout on resize
+      // The SVG's dimensions are handled by CSS. We no longer set them here,
+      // which avoids the ResizeObserver feedback loop.
+      // We just need to get the new dimensions and recalculate the layout.
       updateDependencyGraphSelection();
     }
-  }, 250);
+  };
+
+  // Fullscreen logic
+  const graphSection = document.getElementById('dependency-graph-section');
+  const fullscreenBtn = document.getElementById('graph-fullscreen-btn');
+  const expandIcon = document.getElementById('expand-icon');
+  const collapseIcon = document.getElementById('collapse-icon');
+
+  if (fullscreenBtn && graphSection && expandIcon && collapseIcon) {
+    fullscreenBtn.addEventListener('click', () => {
+      graphSection.classList.toggle('fullscreen');
+      const isFullscreen = graphSection.classList.contains('fullscreen');
+
+      expandIcon.style.display = isFullscreen ? 'none' : 'block';
+      collapseIcon.style.display = isFullscreen ? 'block' : 'none';
+
+      // The ResizeObserver will now handle the update.
+      // Calling performResizeUpdate directly from a timeout was creating a
+      // race condition and feedback loop with the observer.
+    });
+  }
+
+  // Handle container resize with debouncing
+  const debouncedResizeUpdate = debounce(performResizeUpdate, 250);
 
   // Using ResizeObserver is more robust for element resizes than 'window.resize'
   if (window.ResizeObserver) {

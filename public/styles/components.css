@@ -1,0 +1,242 @@
+/* --- USER INPUT --- */
+.user-input-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.user-input-header h2 {
+  margin-bottom: 0;
+}
+
+.copy-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* --- FORMS & BUTTONS --- */
+label {
+  font-weight: 500;
+  margin-bottom: 8px;
+  display: block;
+}
+
+input[type="text"], textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input[type="text"]:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background-color: var(--accent-primary);
+  color: white;
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+button:hover {
+  background-color: var(--accent-hover);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+button#manage-whitelist-btn {
+  background-color: var(--bg-tertiary);
+}
+
+/* Small buttons (e.g., in directory items) */
+.directory-item button {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+.directory-item button.remove-btn {
+  background-color: var(--error-color);
+}
+
+
+/* --- PROMPT SELECTION --- */
+#prompt-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.custom-checkbox {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  background-color: var(--bg-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.custom-checkbox:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.custom-checkbox input[type="checkbox"] {
+  display: none;
+}
+
+.custom-checkbox .checkmark {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--bg-tertiary);
+  border-radius: 4px;
+  margin-right: 10px;
+  position: relative;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.custom-checkbox input[type="checkbox"]:checked + .checkmark {
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.custom-checkbox input[type="checkbox"]:checked + .checkmark::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* --- XML PREVIEW --- */
+.xml-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.xml-preview-header h2 {
+  margin-bottom: 0;
+}
+
+.xml-preview summary {
+  list-style: none; /* Hide default arrow */
+  cursor: pointer;
+}
+.xml-preview summary::-webkit-details-marker {
+  display: none; /* Hide default arrow for webkit */
+}
+
+.summary-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.token-count {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-left: 12px;
+}
+
+.preview-toggle {
+  color: var(--text-secondary);
+  width: 16px;
+  height: 16px;
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.xml-preview details[open] > summary .preview-toggle {
+  transform: rotate(90deg);
+}
+
+#xml-output {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  font-family: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
+  font-size: 0.85rem;
+  height: 400px;
+  overflow: auto;
+  white-space: pre;
+  margin-top: 16px;
+}
+
+#copy-feedback {
+  color: var(--success-color);
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+  font-weight: 500;
+}
+#copy-feedback.show {
+  opacity: 1;
+}
+
+/* Failed files list styling */
+#failed-files {
+  margin-top: 15px;
+  color: var(--error-color);
+}
+
+#failed-files h3 {
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+#failed-files ul {
+  list-style-type: none;
+  font-size: 0.9rem;
+  background: rgba(255, 59, 48, 0.1);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+#failed-files ul li {
+  overflow-wrap: break-word; /* Ensure long file paths can wrap */
+}
+
+/* --- RESIZE HANDLE --- */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  width: 5px;
+  height: 100%;
+  cursor: ew-resize;
+  background-color: transparent;
+  z-index: 10;
+  transition: background-color 0.2s;
+}
+
+.resize-handle:hover {
+  background-color: var(--accent-primary);
+}

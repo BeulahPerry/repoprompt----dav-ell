@@ -1,0 +1,88 @@
+/* --- DEPENDENCY GRAPH --- */
+.dependency-graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.dependency-graph-header h2 {
+  margin-bottom: 0;
+}
+
+.graph-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.graph-control-btn {
+  /* Override default button styles */
+  background-color: transparent;
+  padding: 4px;
+  line-height: 0;
+
+  /* Custom styles */
+  border: none;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.graph-control-btn:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.graph-control-btn:active {
+  transform: scale(0.95);
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(240, 240, 240, 0.25); /* Thicker and brighter base */
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#graph {
+  width: 100%;
+  height: 400px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+
+/* Fullscreen state */
+#dependency-graph-section.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2000;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+}
+
+#dependency-graph-section.fullscreen .dependency-graph-header {
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+#dependency-graph-section.fullscreen #graph {
+  flex-grow: 1;
+  height: auto;
+}

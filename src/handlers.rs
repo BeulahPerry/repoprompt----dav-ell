@@ -45,6 +45,40 @@ pub async fn get_directory_contents(query: web::Query<DirectoryQuery>) -> HttpRe
         }
     };
 
+    let duration = start_time.elapsed();
+    info!("Successfully processed directory '{}' in {:.2?}.", path.display(), duration);
+    HttpResponse::Ok().json(json!({
+        "success": true,
+        "root": path.to_str().unwrap_or(""),
+        "tree": tree,
+    }))
+}
+
+#[get("/api/dependencies")]
+pub async fn get_dependencies(query: web::Query<DirectoryQuery>) -> HttpResponse {
+    let base_path_str = query.path.clone().unwrap_or_else(|| ".".to_string());
+    info!("Received request for dependencies: {}", base_path_str);
+    let start_time = Instant::now();
+
+    let path = match validate_path(&base_path_str) {
+        Ok(p) => p,
+        Err(e) => {
+            warn!("Path validation failed for '{}': {}", base_path_str, e);
+            return HttpResponse::Ok().json(json!({ "success": false, "error": e }));
+        }
+    };
+    info!("Processing dependency analysis for: {}", path.display());
+
+    let (gitignore, _) = Gitignore::new(&path.join(".gitignore"));
+
+    let tree = match build_tree(&path, &gitignore) {
+        Ok(t) => t,
+        Err(e) => {
+            warn!("Failed to build tree for '{}': {}", path.display(), e);
+            return HttpResponse::Ok().json(json!({ "success": false, "error": e }));
+        }
+    };
+
     let dependency_graph = match analyze_dependencies(&path, &tree) {
         Ok(deps) => deps,
         Err(e) => {
@@ -56,11 +90,10 @@ pub async fn get_directory_contents(query: web::Query<DirectoryQuery>) -> HttpRe
     let expanded_graph = expand_init_dependencies(&dependency_graph);
 
     let duration = start_time.elapsed();
-    info!("Successfully processed directory '{}' in {:.2?}.", path.display(), duration);
+    info!("Successfully processed dependencies for '{}' in {:.2?}.", path.display(), duration);
     HttpResponse::Ok().json(json!({
         "success": true,
         "root": path.to_str().unwrap_or(""),
-        "tree": tree,
         "dependencyGraph": expanded_graph,
     }))
 }

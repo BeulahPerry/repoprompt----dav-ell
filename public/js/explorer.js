@@ -4,7 +4,7 @@ import { state, saveStateToLocalStorage } from './state.js';
 import { renderFileExplorer } from './fileTreeRenderer.js';
 import { updateXMLPreview } from './xmlPreview.js';
 import { tryFetchWithFallback } from './connection.js';
-import { updateDependencyGraph } from './dependencyGraph.js';
+import { updateDependencyGraph, showDependencySpinner, hideDependencySpinner } from './dependencyGraph.js';
 
 /**
  * Generates the file explorer by fetching directory contents from the server for a specific directory and updating the UI.
@@ -39,11 +39,19 @@ export async function generateFileExplorer(dirId) {
     if (data.success) {
       dir.path = data.root; // Update with canonicalized path from server
       dir.tree = data.tree; // Assign the full tree structure
-      dir.dependencyGraph = data.dependencyGraph || {}; // Store the dependency graph
+      dir.dependencyGraph = {}; // Initialize as empty, will be populated by async call
       delete dir.error; // Clear any previous error
       state.fileCache.clear(); // Clear cache when directory changes
       console.log('File explorer updated successfully with tree:', dir.tree);
+      
+      // Render file explorer immediately so the UI is usable
       renderFileExplorer();
+      
+      // Update graph with empty dependencies first (will hide the graph section)
+      updateDependencyGraph();
+      
+      // Now fetch dependencies asynchronously without blocking the UI
+      fetchDependenciesAsync(dir);
     } else {
       let errorMsg = data.error;
       if (errorMsg.includes("permission denied")) {
@@ -52,11 +60,46 @@ export async function generateFileExplorer(dirId) {
       dir.error = errorMsg;
       renderFileExplorer();
       console.error('Failed to load directory:', data.error);
+      updateDependencyGraph();
     }
   } catch (error) {
     dir.error = `Network error - ${error.message}`;
     renderFileExplorer();
     console.error('Network error:', error.message);
+    updateDependencyGraph();
   }
-  updateDependencyGraph();
+}
+
+/**
+ * Fetches dependencies asynchronously for a directory without blocking the UI.
+ * Shows a spinner while loading and updates the graph when complete.
+ * @param {object} dir - The directory object to fetch dependencies for.
+ */
+async function fetchDependenciesAsync(dir) {
+  if (!dir.path) return;
+  
+  try {
+    console.log(`Fetching dependencies for: ${dir.path}`);
+    showDependencySpinner();
+    
+    const url = `${state.baseEndpoint}/api/dependencies?path=${encodeURIComponent(dir.path)}`;
+    const response = await tryFetchWithFallback(url);
+    const data = await response.json();
+    
+    if (data.success) {
+      dir.dependencyGraph = data.dependencyGraph || {};
+      console.log('Dependencies loaded successfully:', Object.keys(dir.dependencyGraph).length, 'files');
+      
+      // Update the dependency graph visualization with the new data
+      updateDependencyGraph();
+    } else {
+      console.warn('Failed to load dependencies:', data.error);
+      dir.dependencyGraph = {};
+    }
+  } catch (error) {
+    console.warn('Error fetching dependencies:', error.message);
+    dir.dependencyGraph = {};
+  } finally {
+    hideDependencySpinner();
+  }
 }

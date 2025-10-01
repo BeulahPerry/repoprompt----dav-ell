@@ -43,6 +43,22 @@ function hideGraphFeedback() {
 }
 
 /**
+ * Public API: Shows the dependency loading spinner.
+ * Used when fetching dependencies asynchronously.
+ */
+export function showDependencySpinner() {
+    showGraphFeedback();
+}
+
+/**
+ * Public API: Hides the dependency loading spinner.
+ * Called when dependency loading is complete or fails.
+ */
+export function hideDependencySpinner() {
+    hideGraphFeedback();
+}
+
+/**
  * Initializes the web worker for graph layout calculations.
  */
 function initGraphWorker() {
@@ -311,7 +327,9 @@ export function updateDependencyGraph() {
 
   const graphSection = document.getElementById('dependency-graph-section');
   if (graphSection) {
-    if (baseGraphData.links.length === 0) {
+    const isLoading = graphFeedbackElement && graphFeedbackElement.style.display !== 'none';
+    // Show the graph section if we have dependencies OR if we're currently loading
+    if (baseGraphData.links.length === 0 && !isLoading) {
       graphSection.style.display = 'none';
     } else {
       graphSection.style.display = 'block';

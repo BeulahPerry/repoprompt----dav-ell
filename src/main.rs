@@ -45,6 +45,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .service(handlers::connect)
             .service(handlers::get_directory_contents)
+            .service(handlers::get_dependencies)
             .service(handlers::get_file_content)
             .service(handlers::get_files_content)
             .default_service(web::to(handlers::static_handler))

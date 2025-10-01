@@ -257,18 +257,18 @@ fn analyze_python(
 (import_from_statement
   module_name: (relative_import) @module
 )
-; Pattern 3: from . import foo[, bar, ...]
+; Pattern 2: from . import foo[, bar, ...]
 (import_from_statement
   module_name: (relative_import) @dots
-  import_from_names: (import_from_names
-    (import_from_name
-      (dotted_name) @name
-      (aliased_import
-        name: (choice (identifier) (dotted_name)) @name
-      )
-    )*
+  name: (dotted_name) @name
+  (#match? @dots "^\.+$")
+)
+(import_from_statement
+  module_name: (relative_import) @dots
+  name: (aliased_import
+    name: (dotted_name) @name
   )
-  (#match? @dots "^\.+")
+  (#match? @dots "^\.+$")
 )
 "#;
     let query = match Query::new(&language, query_src) {
@@ -316,7 +316,7 @@ fn analyze_python(
                         }
                     }
                 },
-                3 => { // from . import a, from .. import b
+                3 | 4 => { // from . import a, from .. import b
                     let mut dots_opt = None;
                     let mut names = Vec::new();
                     for cap in mat.captures {

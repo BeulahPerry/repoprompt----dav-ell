@@ -86,7 +86,13 @@ function addDragHandle(card) {
  */
 function createPlaceholder() {
   const div = document.createElement('div');
-  div.className = 'card-placeholder';
+  div.className = 'card-placeholder placeholder-entering';
+  
+  // Remove the animation class after it completes to prevent retriggering
+  setTimeout(() => {
+    div.classList.remove('placeholder-entering');
+  }, 200); // Match the animation duration
+  
   return div;
 }
 

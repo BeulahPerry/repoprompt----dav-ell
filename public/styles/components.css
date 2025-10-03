@@ -245,7 +245,16 @@ button#manage-whitelist-btn {
 /* --- DRAGGABLE CARDS --- */
 .draggable-card {
   cursor: grab;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              margin 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.draggable-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .draggable-card:active {
@@ -253,16 +262,62 @@ button#manage-whitelist-btn {
 }
 
 .draggable-card.dragging {
-  opacity: 0.5;
+  opacity: 0.6;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transform: scale(1.02) rotate(1deg);
+  transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card-placeholder {
-  background-color: var(--bg-tertiary);
+  background: linear-gradient(135deg, 
+    rgba(0, 122, 255, 0.05) 0%, 
+    rgba(0, 122, 255, 0.1) 100%);
   border: 2px dashed var(--accent-primary);
   border-radius: var(--border-radius);
   margin-bottom: 24px;
-  transition: height 0.2s ease;
-  opacity: 0.6;
+  opacity: 1;
+  position: relative;
+  overflow: hidden;
+  /* Use transitions for smooth movement, not animations */
+  transition: height 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-placeholder.placeholder-entering {
+  animation: placeholderFadeIn 0.2s ease;
+}
+
+.card-placeholder::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(0, 122, 255, 0.2), 
+    transparent);
+  animation: placeholderShimmer 1.5s infinite;
+}
+
+@keyframes placeholderFadeIn {
+  from {
+    opacity: 0;
+    transform: scaleY(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes placeholderShimmer {
+  0% {
+    left: -100%;
+  }
+  50%, 100% {
+    left: 100%;
+  }
 }
 
 .drag-handle {
@@ -270,24 +325,36 @@ button#manage-whitelist-btn {
   top: 12px;
   right: 12px;
   color: var(--text-secondary);
-  opacity: 0.4;
-  transition: opacity 0.2s;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
   cursor: grab;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 4px;
   z-index: 1;
+  transform: scale(0.8);
+}
+
+.draggable-card:hover .drag-handle {
+  opacity: 0.6;
+  transform: scale(1);
 }
 
 .drag-handle:hover {
-  opacity: 0.8;
+  opacity: 1 !important;
+  transform: scale(1.1) !important;
 }
 
 .draggable-card:active .drag-handle {
   cursor: grabbing;
 }
 
+.draggable-card.dragging .drag-handle {
+  opacity: 0;
+}
+
 .drag-handle svg {
   pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }

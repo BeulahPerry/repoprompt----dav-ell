@@ -241,3 +241,53 @@ button#manage-whitelist-btn {
 .resize-handle:hover {
   background-color: var(--accent-primary);
 }
+
+/* --- DRAGGABLE CARDS --- */
+.draggable-card {
+  cursor: grab;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.draggable-card:active {
+  cursor: grabbing;
+}
+
+.draggable-card.dragging {
+  opacity: 0.5;
+}
+
+.card-placeholder {
+  background-color: var(--bg-tertiary);
+  border: 2px dashed var(--accent-primary);
+  border-radius: var(--border-radius);
+  margin-bottom: 24px;
+  transition: height 0.2s ease;
+  opacity: 0.6;
+}
+
+.drag-handle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: var(--text-secondary);
+  opacity: 0.4;
+  transition: opacity 0.2s;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  z-index: 1;
+}
+
+.drag-handle:hover {
+  opacity: 0.8;
+}
+
+.draggable-card:active .drag-handle {
+  cursor: grabbing;
+}
+
+.drag-handle svg {
+  pointer-events: none;
+}

@@ -13,6 +13,7 @@ import { initWhitelistModal } from './whitelist.js';
 import { handleZipUpload, handleFolderUpload } from './uploader.js';
 import { initDependencyGraph, updateDependencyGraph } from './dependencyGraph.js';
 import { searchFileTree } from './search.js';
+import { initCardReordering } from './cardReorder.js';
 
 /**
  * Renders the list of directories in the UI with remove buttons.
@@ -106,6 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initPromptModal();
   initWhitelistModal();
   initDependencyGraph();
+  initCardReordering();
 
   // Render initial directories list and file explorer
   renderDirectoriesList();

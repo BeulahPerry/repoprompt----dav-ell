@@ -1,7 +1,7 @@
 [package]
 name = "repoprompt"
 version = "1.5.2"
-edition = "2025"
+edition = "2021"
 
 [dependencies]
 rust-embed = "8.6.0"

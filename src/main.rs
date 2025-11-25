@@ -20,7 +20,9 @@ mod utils;
 async fn main() -> std::io::Result<()> {
     // Initialize env_logger. You can override the log level with the RUST_LOG environment variable.
     // e.g., `RUST_LOG=debug cargo run` for more verbose output.
-    env::set_var("RUST_LOG", env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string()));
+    unsafe {
+        env::set_var("RUST_LOG", env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string()));
+    }
     env_logger::init();
 
     let port = env::var("PORT").unwrap_or_else(|_| "3000".to_string());
